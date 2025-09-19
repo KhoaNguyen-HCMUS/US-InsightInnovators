@@ -1,0 +1,22 @@
+{
+  "name": "src",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:all": "concurrently -n WEB,CORE,ML -c auto \"pnpm --filter @app/web dev\" \"pnpm --filter @app/core dev\" \"pnpm --filter @app/ml dev\"",
+    "dev:server": "concurrently -n CORE,ML -c auto \"pnpm --filter @app/core dev\" \"pnpm --filter @app/ml dev\"",
+    "dev:web": "pnpm --filter @app/web dev",
+    "dev:core": "pnpm --filter @app/core dev",
+    "dev:ml": "pnpm --filter @app/ml dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
