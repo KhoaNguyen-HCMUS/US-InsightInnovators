@@ -8,6 +8,7 @@ import Navbar from './components/navbar'
 import LandingPage from './pages/landingPage'
 import LoginPage from './pages/loginPage'
 import RegisterPage from './pages/registerPage'
+import ProfilePage from './pages/profilePage'
 
 function App() {
 
@@ -19,7 +20,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
         <ToastContainer
                   position='top-right'
