@@ -1,9 +1,13 @@
+import { ThemeProvider } from './context/themeContext'
+
 function App() {
 
   return (
-    <div className="App">
-      <h1>Vite + React</h1>
-    </div>
+    <ThemeProvider> 
+      <div className="App">
+        <h1>Hello, World!</h1>
+      </div>
+    </ThemeProvider>
   )
 }
 
