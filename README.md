@@ -19,9 +19,9 @@ cd server/ml
 python -m venv .venv
 
 # Windows (PowerShell):
-.venv/Scripts/Activate.ps1
-# macOS/Linux:
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux (GitBash):
+source .venv/Scripts/activate
 
 pip install -r requirements.txt 
 cd ../..
