@@ -1,4 +1,5 @@
-import type { HealthProfile, HealthIndices, ACTIVITY_FACTORS, ActivityLevel } from '../types/health';
+import type { HealthProfile, HealthIndices, ActivityLevel } from '../types/health';
+import { ACTIVITY_FACTORS } from '../types/health';
 
 /**
  * Calculate BMI (Body Mass Index)
