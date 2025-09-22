@@ -85,10 +85,10 @@ export default function ProfileFooter({
             </div>
           </div>
           <div className="ml-4">
-            <h4 className="text-lg font-semibold text-info-foreground mb-2">
+            <h4 className="text-lg font-semibold text-text-header mb-2">
               Profile Update Impact
             </h4>
-            <p className="text-sm text-info-foreground leading-relaxed">
+            <p className="text-sm text-text-body leading-relaxed">
               Updating your health profile will automatically recalculate your meal plans and nutritional recommendations. 
               This ensures your dietary guidance stays aligned with your current health status and goals.
             </p>
