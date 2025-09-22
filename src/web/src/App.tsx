@@ -10,6 +10,7 @@ import LoginPage from './pages/loginPage'
 import RegisterPage from './pages/registerPage'
 import ProfilePage from './pages/profilePage'
 import MealPlanPage from './pages/mealPlanPage'
+import DashboardPage from './pages/dashboardPage'
 
 function App() {
 
@@ -21,6 +22,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/meal-plans" element={<MealPlanPage />} />
         </Routes>
