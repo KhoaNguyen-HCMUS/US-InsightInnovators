@@ -1,4 +1,4 @@
-import { FaFire, FaDrumstickBite, FaBreadSlice, FaCheese, FaLeaf, FaTint, FaRunning } from 'react-icons/fa';
+import { FaFire, FaDrumstickBite, FaBreadSlice, FaCheese, FaLeaf } from 'react-icons/fa';
 import type { TodayProgress } from '../../types/dashboard';
 
 interface ProgressTrackerProps {
@@ -147,50 +147,7 @@ export default function ProgressTracker({ progress }: ProgressTrackerProps) {
           ))}
         </div>
 
-        {/* Water */}
-        <div className="bg-bg rounded-lg p-3 border border-border-light">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center">
-              <FaTint className="text-blue-500 mr-2" />
-              <span className="text-xs font-medium text-text-body">Water</span>
-            </div>
-            <span className={`text-sm font-bold ${getProgressColor(progress.water.percentage)}`}>
-              {progress.water.consumed}ml
-            </span>
-          </div>
-          
-          <div className="w-full bg-bg-muted rounded-full h-1.5 mb-1">
-            <div 
-              className="h-1.5 rounded-full transition-all duration-300 bg-blue-500"
-              style={{ width: `${Math.min(100, progress.water.percentage)}%` }}
-            ></div>
-          </div>
-          
-          <div className="flex justify-between text-xs text-text-body">
-            <span>{progress.water.percentage.toFixed(0)}%</span>
-            <span>{progress.water.target}ml target</span>
-          </div>
-        </div>
-
-        {/* Exercise */}
-        <div className="bg-bg rounded-lg p-3 border border-border-light">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center">
-              <FaRunning className="text-green-500 mr-2" />
-              <span className="text-xs font-medium text-text-body">Exercise</span>
-            </div>
-            <span className="text-sm font-bold text-green-500">
-              {progress.exercise.minutes}m
-            </span>
-          </div>
-          
-          <div className="text-xs text-text-body mt-2">
-            <div className="flex justify-between">
-              <span>Calories burned:</span>
-              <span className="font-medium">{progress.exercise.caloriesBurned}</span>
-            </div>
-          </div>
-        </div>
+      
       </div>
     </div>
   );
