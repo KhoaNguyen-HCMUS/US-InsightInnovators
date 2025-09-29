@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { z } from "zod";
+import { serializeBigIntObject } from "../utils/serialization";
 
 const prisma = require("../../prisma/client");
 
@@ -33,7 +34,10 @@ export class PromptController {
           purpose: p.data.purpose ?? null,
         },
       });
-      res.json({ id: saved.id });
+
+      // Serialize BigInt fields
+      const serializedSaved = serializeBigIntObject(saved);
+      res.json({ id: serializedSaved.id });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -62,7 +66,9 @@ export class PromptController {
         },
       });
 
-      res.json({ prompts, total: prompts.length });
+      // Serialize BigInt fields
+      const serializedPrompts = serializeBigIntObject(prompts);
+      res.json({ prompts: serializedPrompts, total: prompts.length });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -168,12 +174,14 @@ ${profileContext}
         },
       });
 
+      // Serialize BigInt fields
+      const serializedSaved = serializeBigIntObject(saved);
       res.json({
         optimized_prompt: optimizedPrompt,
         original_message: user_message,
         context_applied: selectedContext,
         has_profile_context: !!profileContext,
-        prompt_id: saved.id,
+        prompt_id: serializedSaved.id,
       });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });

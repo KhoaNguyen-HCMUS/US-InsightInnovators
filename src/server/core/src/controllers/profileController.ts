@@ -1,11 +1,35 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { serializeProfile } from "../utils/serialization";
 
 const prisma = require("../../prisma/client");
 
 const toNum = (d?: Prisma.Decimal | number | null, def = 0) =>
   d == null ? def : Number(d);
+
+// Helper function to safely serialize objects with BigInt
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+
+  if (typeof obj === "bigint") {
+    return obj.toString();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(serializeBigInt);
+  }
+
+  if (typeof obj === "object") {
+    const serialized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      serialized[key] = serializeBigInt(value);
+    }
+    return serialized;
+  }
+
+  return obj;
+}
 
 // Nutrition formulas
 function palFromActivity(level: string) {
@@ -88,7 +112,18 @@ export class ProfileController {
       const profile = await prisma.profiles
         .findUnique({ where: { user_id } })
         .catch(() => null);
-      res.json(profile ?? null);
+
+      if (profile) {
+        // Convert BigInt to string for JSON serialization
+        const serializedProfile = {
+          ...profile,
+          id: profile.id.toString(),
+          user_id: profile.user_id.toString(),
+        };
+        res.json(serializedProfile);
+      } else {
+        res.json(null);
+      }
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -104,9 +139,10 @@ export class ProfileController {
         where: { user_id },
       });
       if (existingProfile) {
+        const serializedExisting = serializeBigInt(existingProfile);
         return res.status(409).json({
           error: "Profile already exists. Use PUT to update.",
-          existing_profile: existingProfile,
+          existing_profile: serializedExisting,
         });
       }
 
@@ -135,9 +171,26 @@ export class ProfileController {
         },
       });
 
+      console.log("Profile created:", profile);
+      console.log("Profile type:", typeof profile);
+      console.log("Profile.id:", profile?.id, "type:", typeof profile?.id);
+      console.log(
+        "Profile.user_id:",
+        profile?.user_id,
+        "type:",
+        typeof profile?.user_id
+      );
+
+      if (!profile) {
+        return res.status(500).json({ error: "Failed to create profile" });
+      }
+
+      // Convert BigInt to string for JSON serialization
+      const serializedProfile = serializeProfile(profile);
+
       res.status(201).json({
         message: "Profile created successfully",
-        profile,
+        profile: serializedProfile,
         calculated_indices: { bmi, bmr, tdee },
       });
     } catch (error) {
@@ -190,7 +243,10 @@ export class ProfileController {
         },
       });
 
-      res.json({ profile: saved, indices: { bmi, bmr, tdee } });
+      // Convert BigInt to string for JSON serialization
+      const serializedSaved = serializeBigInt(saved);
+
+      res.json({ profile: serializedSaved, indices: { bmi, bmr, tdee } });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -296,7 +352,10 @@ export class ProfileController {
         ],
       };
 
-      res.json({ insights, profile_summary: profile });
+      // Convert BigInt to string for JSON serialization
+      const serializedProfileSummary = serializeBigInt(profile);
+
+      res.json({ insights, profile_summary: serializedProfileSummary });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -364,7 +423,10 @@ export class ProfileController {
         },
       };
 
-      res.json({ constraints: healthConstraints, profile_id: profile.user_id });
+      res.json({
+        constraints: healthConstraints,
+        profile_id: profile.user_id.toString(),
+      });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }

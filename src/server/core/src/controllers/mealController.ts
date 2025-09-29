@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { serializeBigIntObject } from "../utils/serialization";
 
 const prisma = require("../../prisma/client");
 
@@ -133,7 +134,9 @@ export class MealController {
         include: { meal_items: true },
       });
 
-      res.json({ meal: result });
+      // Serialize BigInt fields
+      const serializedResult = serializeBigIntObject(result);
+      res.json({ meal: serializedResult });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -184,7 +187,7 @@ export class MealController {
       startDate.setHours(0, 0, 0, 0);
 
       const meals = await prisma.meals.findMany({
-        where: { user_id, created_at: { gte: startDate } },
+        where: { user_id, date_time: { gte: startDate } },
         include: { meal_items: true },
       });
 
@@ -206,7 +209,7 @@ export class MealController {
 
       // Đếm bữa ăn theo ngày
       meals.forEach((meal: any) => {
-        const day = meal.created_at.toISOString().split("T")[0];
+        const day = meal.date_time.toISOString().split("T")[0];
         if (dailyStats[day]) dailyStats[day].meals++;
       });
 
@@ -252,10 +255,13 @@ export class MealController {
         protein_adequate: avgDaily.protein >= 50 ? "Đủ" : "Thiếu",
       };
 
-      res.json({
+      // Serialize BigInt fields
+      const serializedAnalytics = serializeBigIntObject({
         analytics: { daily_stats: dailyStats, averages: avgDaily, patterns },
         period: { days, start: startDate, total_meals: meals.length },
       });
+
+      res.json(serializedAnalytics);
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -349,7 +355,8 @@ export class MealController {
         .filter((s) => s.suitable_for)
         .slice(0, 5);
 
-      res.json({
+      // Serialize BigInt fields
+      const serializedResponse = serializeBigIntObject({
         suggestions,
         context: {
           consumed_today: consumed,
@@ -357,6 +364,8 @@ export class MealController {
           progress_percent: Math.round((consumed.kcal / tdee) * 100),
         },
       });
+
+      res.json(serializedResponse);
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -372,13 +381,13 @@ export class MealController {
       startDate.setDate(startDate.getDate() - days);
 
       const meals = await prisma.meals.findMany({
-        where: { user_id, created_at: { gte: startDate } },
-        orderBy: { created_at: "asc" },
+        where: { user_id, date_time: { gte: startDate } },
+        orderBy: { date_time: "asc" },
       });
 
       // Phân tích theo giờ trong ngày
       const hourlyPattern = meals.reduce((acc: any, meal: any) => {
-        const hour = meal.created_at.getHours();
+        const hour = meal.date_time.getHours();
         acc[hour] = (acc[hour] || 0) + 1;
         return acc;
       }, {});
@@ -401,7 +410,7 @@ export class MealController {
 
       // Phân tích weekly patterns
       const weeklyPattern = meals.reduce((acc: any, meal: any) => {
-        const day = meal.created_at.getDay(); // 0=Sunday, 1=Monday...
+        const day = meal.date_time.getDay(); // 0=Sunday, 1=Monday...
         acc[day] = (acc[day] || 0) + 1;
         return acc;
       }, {});
@@ -434,7 +443,8 @@ export class MealController {
           "Duy trì thói quen ăn uống nhất quán cả cuối tuần"
         );
 
-      res.json({
+      // Serialize BigInt fields
+      const serializedResponse = serializeBigIntObject({
         patterns: {
           hourly: hourlyPattern,
           weekly: weeklyPattern,
@@ -444,6 +454,8 @@ export class MealController {
         recommendations,
         period: { days, total_meals: meals.length },
       });
+
+      res.json(serializedResponse);
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }

@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { serializeBigIntObject } from "../utils/serialization";
 
 const prisma = require("../../prisma/client");
 
@@ -27,7 +28,9 @@ export class FoodController {
         prisma.foods.count({ where }),
       ]);
 
-      res.json({ items, page, pageSize, total });
+      // Serialize BigInt fields
+      const serializedItems = serializeBigIntObject(items);
+      res.json({ items: serializedItems, page, pageSize, total });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -39,7 +42,10 @@ export class FoodController {
       const id = BigInt(req.params.id);
       const food = await prisma.foods.findUnique({ where: { id } });
       if (!food) return res.status(404).json({ error: "Not found" });
-      res.json(food);
+
+      // Serialize BigInt fields
+      const serializedFood = serializeBigIntObject(food);
+      res.json(serializedFood);
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -97,7 +103,9 @@ export class FoodController {
         )
         .slice(0, 10);
 
-      res.json({ recommendations });
+      // Serialize BigInt fields
+      const serializedRecommendations = serializeBigIntObject(recommendations);
+      res.json({ recommendations: serializedRecommendations });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -141,9 +149,13 @@ export class FoodController {
         .sort((a: any, b: any) => b.similarity_score - a.similarity_score)
         .slice(0, 5);
 
+      // Serialize BigInt fields
+      const serializedOriginal = serializeBigIntObject(originalFood);
+      const serializedAlternatives = serializeBigIntObject(safeAlternatives);
+
       res.json({
-        original: originalFood,
-        alternatives: safeAlternatives,
+        original: serializedOriginal,
+        alternatives: serializedAlternatives,
         user_constraints: extractUserConstraints(profile),
       });
     } catch (error) {
@@ -211,11 +223,15 @@ export class FoodController {
         profile
       );
 
+      // Serialize BigInt fields
+      const serializedFoodRecommendations =
+        serializeBigIntObject(foodRecommendations);
+
       res.json({
         analysis_period: `${days} ngày`,
         nutrient_status: gaps,
         deficiencies: deficientNutrients.map((g) => g.nutrient),
-        food_recommendations: foodRecommendations,
+        food_recommendations: serializedFoodRecommendations,
         overall_score: calculateNutritionScore(gaps),
       });
     } catch (error) {

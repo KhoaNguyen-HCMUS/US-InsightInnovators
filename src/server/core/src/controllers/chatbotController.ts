@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { serializeBigIntObject } from "../utils/serialization";
 
 // Prisma Client
 const prisma = require("../../prisma/client");
@@ -36,8 +37,8 @@ async function getProfileContext(user_id: bigint) {
   recentDate.setDate(recentDate.getDate() - 7);
 
   const recentMeals = await prisma.meals.findMany({
-    where: { user_id, created_at: { gte: recentDate } },
-    orderBy: { created_at: "desc" },
+    where: { user_id, date_time: { gte: recentDate } },
+    orderBy: { date_time: "desc" },
     take: 10,
   });
 
@@ -197,15 +198,56 @@ ${
 
   const contents = [
     { role: "user", parts: [{ text: systemPrompt }] },
-    ...messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
+    ...messages.map((m) => ({
+      role:
+        m.role === "assistant"
+          ? "model"
+          : m.role === "system"
+          ? "user"
+          : m.role,
+      parts: [{ text: m.content }],
+    })),
   ];
+
+  // Validate content length to avoid API errors
+  const totalLength = contents.reduce(
+    (sum, content) =>
+      sum +
+      content.parts.reduce((partSum, part) => partSum + part.text.length, 0),
+    0
+  );
+
+  if (totalLength > 30000) {
+    // Gemini has ~30k char limit
+    console.warn("⚠️ Content too long for Gemini API:", totalLength);
+    // Truncate older messages but keep system prompt
+    const systemContent = contents[0];
+    const recentMessages = contents.slice(-3); // Keep last 3 messages
+    contents.splice(0, contents.length, systemContent, ...recentMessages);
+  }
 
   try {
     const resp = await model.generateContent({ contents });
     const text = resp.response.text() || "";
     return text.trim();
-  } catch (error) {
-    console.error("🚨 Gemini API Error:", error);
+  } catch (error: any) {
+    console.error("🚨 Gemini API Error:", {
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      errorDetails: error.errorDetails,
+      requestContents: contents.length,
+    });
+
+    // Return more specific error based on status
+    if (error.status === 400) {
+      return "Xin lỗi, yêu cầu không hợp lệ. Bạn có thể thử diễn đạt lại câu hỏi không? 🤔";
+    } else if (error.status === 429) {
+      return "Hệ thống đang quá tải. Vui lòng thử lại sau ít phút. ⏳";
+    } else if (error.status === 500) {
+      return "Lỗi từ hệ thống AI. Đội kỹ thuật đang khắc phục. 🔧";
+    }
+
     return "Xin lỗi, hệ thống AI tạm thời gặp sự cố. Vui lòng thử lại sau ít phút. 🤖💔";
   }
 }
@@ -218,7 +260,7 @@ export class ChatbotController {
       const s = await prisma.chat_sessions.create({
         data: { user_id, started_at: new Date(), lang: "vi" },
       });
-      res.json({ session_id: s.id });
+      res.json({ session_id: s.id?.toString() || "unknown" });
     } catch (error) {
       console.error("❌ createSession error:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -235,7 +277,10 @@ export class ChatbotController {
         orderBy: { started_at: "desc" },
         take: limit,
       });
-      res.json({ sessions });
+
+      // Serialize BigInt fields
+      const serializedSessions = serializeBigIntObject(sessions);
+      res.json({ sessions: serializedSessions });
     } catch (error) {
       console.error("❌ getSessions error:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -282,11 +327,12 @@ export class ChatbotController {
 
       // Nếu không phải user nhắn (VD: system seed) thì không cần gọi LLM
       if (parsed.data.role !== "user") {
-        await prisma.chat_sessions.update({
-          where: { id: session_id },
-          data: { updated_at: new Date() },
+        // Session timestamp tự động update qua started_at khi tạo
+        // Table chat_sessions không có updated_at field
+        return res.json({
+          message_id: userMsg.id?.toString(),
+          turn_index: nextTurn,
         });
-        return res.json({ message_id: userMsg.id, turn_index: nextTurn });
       }
 
       // 3) Lấy history gần nhất làm context
@@ -326,17 +372,14 @@ export class ChatbotController {
         },
       });
 
-      // 7) Cập nhật session timestamp
-      await prisma.chat_sessions.update({
-        where: { id: session_id },
-        data: { updated_at: new Date() },
-      });
+      // 7) Session timestamp tự động update qua started_at khi tạo
+      // Table chat_sessions không có updated_at field
 
       // 8) Trả về
       res.json({
-        user_message: { id: userMsg.id, turn_index: nextTurn },
+        user_message: { id: userMsg.id?.toString(), turn_index: nextTurn },
         assistant_message: {
-          id: assistantMsg.id,
+          id: assistantMsg.id?.toString(),
           turn_index: nextTurn + 1,
           content: llmText,
         },
@@ -365,7 +408,10 @@ export class ChatbotController {
         where: { session_id },
         orderBy: { turn_index: "asc" },
       });
-      res.json({ messages: msgs });
+
+      // Serialize BigInt fields
+      const serializedMsgs = serializeBigIntObject(msgs);
+      res.json({ messages: serializedMsgs });
     } catch (error) {
       console.error("❌ getSessionMessages error:", error);
       res.status(500).json({ error: "Internal server error" });
