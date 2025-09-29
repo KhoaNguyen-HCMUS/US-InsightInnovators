@@ -7,7 +7,7 @@ import type {
   MeasurementUnits 
 } from '../../types/health';
 import { convertWeight, convertHeight } from '../../utils/healthCalculations';
-import { FaUser, FaWeight, FaRuler, FaBirthdayCake, FaVenusMars, FaRunning, FaHeartbeat, FaAllergies, FaHeart, FaMapMarkerAlt, FaPills } from 'react-icons/fa';
+import { FaUser, FaWeight, FaRuler, FaVenusMars, FaRunning, FaHeart, FaHeartbeat, FaAllergies, FaPills } from 'react-icons/fa';
 import { activityLevels } from '../../constant/health';
 
 interface HealthFormProps {
@@ -19,7 +19,7 @@ interface HealthFormProps {
 
 export default function HealthForm({ profile, isEditing, consentGranted, onChange }: HealthFormProps) {
   const [formData, setFormData] = useState<Partial<HealthProfile>>(profile);
-
+  console.log("formData in healthForm:", formData);
   useEffect(() => {
     setFormData(profile);
   }, [profile]);
@@ -120,22 +120,6 @@ export default function HealthForm({ profile, isEditing, consentGranted, onChang
             <h3 className="text-lg font-medium text-text-header">Personal Information</h3>
           </div>
           
-          <div>
-            <label className="flex items-center text-sm font-medium text-text-body mb-2">
-              <FaBirthdayCake className="mr-2 text-accent" />
-              Age
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="120"
-              value={formData.personalInfo?.age || ''}
-              onChange={(e) => handleInputChange('personalInfo.age', parseInt(e.target.value) || 0)}
-              disabled={!isEditing}
-              className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors"
-              placeholder="Enter your age"
-            />
-          </div>
 
           <div>
             <label className="flex items-center text-sm font-medium text-text-body mb-2">
@@ -211,20 +195,7 @@ export default function HealthForm({ profile, isEditing, consentGranted, onChang
             </div>
           </div>
 
-          <div>
-            <label className="flex items-center text-sm font-medium text-text-body mb-2">
-              <FaMapMarkerAlt className="mr-2 text-info" />
-              Location
-            </label>
-            <input
-              type="text"
-              value={formData.personalInfo?.location || ''}
-              onChange={(e) => handleInputChange('personalInfo.location', e.target.value)}
-              disabled={!isEditing}
-              className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors"
-              placeholder="Enter your location (city, country)"
-            />
-          </div>
+      
         </div>
 
         <div className="space-y-4">

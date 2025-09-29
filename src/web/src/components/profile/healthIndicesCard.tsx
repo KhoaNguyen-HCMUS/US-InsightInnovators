@@ -17,7 +17,7 @@ export default function HealthIndicesCard({
   goal, 
   consentGranted 
 }: HealthIndicesCardProps) {
-  
+  console.log('Rendering HealthIndicesCard with indices:', indices, 'consentGranted:', consentGranted);
   if (!consentGranted) {
     return (
       <div className="bg-bg-card rounded-lg shadow-md p-6 mb-6">
@@ -80,7 +80,6 @@ export default function HealthIndicesCard({
         return 'text-text-body bg-bg-muted';
     }
   };
-  indices.bmi.value = 32.2;
 
   return (
     <div className="bg-bg-card rounded-lg shadow-md p-6 mb-6 border-l-4 border-accent">
