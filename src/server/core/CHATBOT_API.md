@@ -4,7 +4,7 @@
 
 **Comprehensive AI-Powered Nutrition Advisory System** - Complete backend API documentation providing intelligent nutrition tracking, personalized food recommendations, behavioral analysis, and context-aware chatbot functionality.
 
-**Base URL**: `http://localhost:5000/api/nutrition`
+**Base URL**: `http://localhost:5000/api`
 
 **Authentication**: All endpoints require JWT authentication via `Authorization: Bearer <token>` header.
 
@@ -36,20 +36,18 @@ Retrieve the current user's complete nutrition profile with calculated health me
 
 ```json
 {
-  "id": "1",
   "user_id": "123",
-  "height_cm": 170.5,
-  "weight_kg": 65.0,
+  "height_cm": "170.50",
+  "weight_kg": "65.00",
   "sex": "female",
   "activity_level": "moderate",
   "goal": "maintain",
   "conditions_json": ["hypertension", "pre_diabetes"],
   "allergies_json": ["nuts", "shellfish"],
   "preferences_json": ["mediterranean", "low_sodium"],
-  "bmi": 22.5,
-  "bmr": 1350.0,
-  "tdee": 1890.0,
-  "created_at": "2025-09-29T10:30:00.000Z",
+  "bmi": "22.50",
+  "bmr": "1350.00",
+  "tdee": "1890.00",
   "updated_at": "2025-09-29T10:30:00.000Z"
 }
 ```
@@ -64,7 +62,6 @@ Create a new nutrition profile. Returns error if profile already exists.
 
 ```json
 {
-  "age": 28,
   "height_cm": 172.0,
   "weight_kg": 68.0,
   "sex": "female",
@@ -78,7 +75,6 @@ Create a new nutrition profile. Returns error if profile already exists.
 
 **Field Validations:**
 
-- `age`: 10-100 years (required)
 - `height_cm`: 100-250 cm (required)
 - `weight_kg`: 30-300 kg (required)
 - `sex`: "male" or "female" (required)
@@ -92,28 +88,24 @@ Create a new nutrition profile. Returns error if profile already exists.
 
 ```json
 {
+  "success": true,
   "message": "Profile created successfully",
-  "profile": {
-    "id": "1",
-    "user_id": "123",
-    "height_cm": 172.0,
-    "weight_kg": 68.0,
-    "sex": "female",
-    "activity_level": "active",
-    "goal": "lose",
-    "conditions_json": ["diabetes", "hypertension"],
-    "allergies_json": ["nuts", "shellfish"],
-    "preferences_json": ["mediterranean", "low_carb"],
-    "bmi": 23.0,
-    "bmr": 1420.0,
-    "tdee": 1988.0,
-    "created_at": "2025-09-29T10:30:00.000Z",
-    "updated_at": "2025-09-29T10:30:00.000Z"
-  },
-  "calculated_indices": {
-    "bmi": 23.0,
-    "bmr": 1420.0,
-    "tdee": 1988.0
+  "data": {
+    "profile": {
+      "user_id": "123",
+      "height_cm": "172.00",
+      "weight_kg": "68.00",
+      "sex": "female",
+      "activity_level": "active",
+      "goal": "lose",
+      "conditions_json": ["diabetes", "hypertension"],
+      "allergies_json": ["nuts", "shellfish"],
+      "preferences_json": ["mediterranean", "low_carb"],
+      "bmi": "23.00",
+      "bmr": "1420.00",
+      "tdee": "1988.00",
+      "updated_at": "2025-09-29T10:30:00.000Z"
+    }
   }
 }
 ```
