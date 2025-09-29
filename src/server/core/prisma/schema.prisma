@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model chat_messages {
+  id            BigInt        @id @default(autoincrement())
+  session_id    BigInt
+  role          msg_role
+  turn_index    Int
+  content       String?
+  top_passages  Json?
+  meta          Json?
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  chat_sessions chat_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([session_id, turn_index], map: "uniq_session_turn")
+  @@index([session_id, created_at], map: "idx_chat_messages_session_time")
+}
+
+model chat_sessions {
+  id              BigInt            @id @default(autoincrement())
+  user_id         BigInt
+  purpose         String?
+  lang            String?           @default("vi")
+  model_name      String?
+  index_version   String?
+  consent_version String?
+  started_at      DateTime          @default(now()) @db.Timestamptz(6)
+  ended_at        DateTime?         @db.Timestamptz(6)
+  chat_messages   chat_messages[]
+  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  symptom_entries symptom_entries[]
+  triage_logs     triage_logs[]
+
+  @@index([user_id, started_at(sort: Desc)], map: "idx_chat_sessions_user_time")
+}
+
+model consents {
+  id          BigInt   @id @default(autoincrement())
+  user_id     BigInt
+  version     String
+  scope       String
+  accepted_at DateTime @db.Timestamptz(6)
+  ip_hash     String?
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, accepted_at(sort: Desc)], map: "idx_consents_user_time")
+}
+
+model ddx_conditions {
+  id       String  @id
+  name_en  String
+  icd10    String?
+  severity Int?
+}
+
+model ddx_evidences {
+  id              String            @id
+  name_en         String
+  question_en     String?
+  symptom_entries symptom_entries[]
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model foods {
+  id                BigInt              @id @default(autoincrement())
+  name              String
+  kcal_100g         Decimal?            @db.Decimal(10, 2)
+  protein_100g      Decimal?            @db.Decimal(10, 2)
+  carbs_100g        Decimal?            @db.Decimal(10, 2)
+  fat_100g          Decimal?            @db.Decimal(10, 2)
+  brand             String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  meal_items        meal_items[]
+  user_food_logs    user_food_logs[]
+  user_food_summary user_food_summary[]
+}
+
+model meal_items {
+  id                   BigInt  @id @default(autoincrement())
+  meal_id              BigInt
+  food_id              BigInt
+  qty_grams            Decimal @db.Decimal(10, 2)
+  planned_meal_item_id BigInt?
+  idx                  Int?
+  foods                foods   @relation(fields: [food_id], references: [id], onUpdate: NoAction)
+  meals                meals   @relation(fields: [meal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([food_id], map: "idx_meal_items_food")
+  @@index([meal_id], map: "idx_meal_items_meal")
+}
+
+model meals {
+  id                   BigInt              @id @default(autoincrement())
+  user_id              BigInt
+  date_time            DateTime            @db.Timestamptz(6)
+  type                 String?
+  source               String?
+  planned_meal_id      BigInt?
+  meal_slot            String?
+  photo_url            String?
+  ai_notes_json        Json?
+  nutrition_cache_json Json?
+  meal_items           meal_items[]
+  users                users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_food_logs       user_food_logs[]
+  user_food_summary    user_food_summary[]
+
+  @@index([user_id, date_time(sort: Desc)], map: "idx_meals_user_time")
+}
+
+model profiles {
+  user_id             BigInt    @id
+  height_cm           Decimal?  @db.Decimal(6, 2)
+  weight_kg           Decimal?  @db.Decimal(6, 2)
+  sex                 String?
+  activity_level      String?
+  goal                String?
+  conditions_json     Json?
+  allergies_json      Json?
+  preferences_json    Json?
+  consent_accepted_at DateTime? @db.Timestamptz(6)
+  bmi                 Decimal?  @db.Decimal(6, 2)
+  bmr                 Decimal?  @db.Decimal(10, 2)
+  tdee                Decimal?  @db.Decimal(10, 2)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+  users               users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model prompts {
+  id            BigInt   @id @default(autoincrement())
+  user_id       BigInt
+  purpose       String?
+  prompt_text   String
+  response_text String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  users         users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, created_at(sort: Desc)], map: "idx_prompts_user_time")
+}
+
+model symptom_entries {
+  id            BigInt          @id @default(autoincrement())
+  session_id    BigInt
+  evidence_id   String
+  value         String?
+  onset_date    DateTime?       @db.Date
+  source        symptom_source?
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  ddx_evidences ddx_evidences   @relation(fields: [evidence_id], references: [id], onUpdate: NoAction)
+  chat_sessions chat_sessions   @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([evidence_id], map: "idx_symptom_entries_evidence")
+  @@index([session_id], map: "idx_symptom_entries_session")
+}
+
+model triage_logs {
+  id            BigInt        @id @default(autoincrement())
+  session_id    BigInt
+  level         triage_level
+  rationale     String?
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  chat_sessions chat_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id, created_at], map: "idx_triage_logs_session_time")
+}
+
+model user_food_logs {
+  id               BigInt   @id @default(autoincrement())
+  user_id          BigInt
+  meal_id          BigInt?
+  food_id          BigInt
+  qty_grams        Decimal  @db.Decimal(10, 2)
+  kcal_snapshot    Decimal? @db.Decimal(10, 2)
+  protein_snapshot Decimal? @db.Decimal(10, 2)
+  carbs_snapshot   Decimal? @db.Decimal(10, 2)
+  fat_snapshot     Decimal? @db.Decimal(10, 2)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  foods            foods    @relation(fields: [food_id], references: [id], onUpdate: NoAction)
+  meals            meals?   @relation(fields: [meal_id], references: [id], onUpdate: NoAction)
+  users            users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([food_id], map: "idx_user_food_logs_food")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_user_food_logs_user_time")
+}
+
+model user_food_summary {
+  id                BigInt    @id @default(autoincrement())
+  user_id           BigInt
+  food_id           BigInt
+  times_eaten       Int       @default(0)
+  total_grams       Decimal   @default(0) @db.Decimal(12, 2)
+  avg_portion_grams Decimal?  @db.Decimal(10, 2)
+  first_eaten_at    DateTime? @db.Timestamptz(6)
+  last_eaten_at     DateTime? @db.Timestamptz(6)
+  last_meal_id      BigInt?
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  foods             foods     @relation(fields: [food_id], references: [id], onUpdate: NoAction)
+  meals             meals?    @relation(fields: [last_meal_id], references: [id], onUpdate: NoAction)
+  users             users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, food_id], map: "uniq_user_food")
+  @@index([food_id], map: "idx_user_food_summary_food")
+  @@index([user_id], map: "idx_user_food_summary_user")
+}
+
+model users {
+  id                BigInt              @id @default(autoincrement())
+  email             String              @unique
+  password_hash     String
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  chat_sessions     chat_sessions[]
+  consents          consents[]
+  meals             meals[]
+  profiles          profiles?
+  prompts           prompts[]
+  user_food_logs    user_food_logs[]
+  user_food_summary user_food_summary[]
+}
+
+enum msg_role {
+  user
+  assistant
+  system
+}
+
+enum symptom_source {
+  user
+  bot_suggested
+  extracted
+}
+
+enum triage_level {
+  self_care  @map("self-care")
+  see_doctor @map("see-doctor")
+  emergency
+}
