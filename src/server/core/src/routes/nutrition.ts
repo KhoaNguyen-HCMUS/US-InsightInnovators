@@ -17,6 +17,7 @@ router.use(authenticateToken);
 
 // PROFILE - Enhanced với AI support
 router.get("/profile", ProfileController.getProfile);
+router.post("/profile", ProfileController.createProfile);
 router.put("/profile", ProfileController.updateProfile);
 router.get("/profile/insights", ProfileController.getProfileInsights);
 router.get("/profile/constraints", ProfileController.getHealthConstraints);
