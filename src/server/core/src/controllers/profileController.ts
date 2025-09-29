@@ -114,12 +114,8 @@ export class ProfileController {
         .catch(() => null);
 
       if (profile) {
-        // Convert BigInt to string for JSON serialization
-        const serializedProfile = {
-          ...profile,
-          id: profile.id.toString(),
-          user_id: profile.user_id.toString(),
-        };
+        // Use serializeProfile helper for proper BigInt handling
+        const serializedProfile = serializeProfile(profile);
         res.json(serializedProfile);
       } else {
         res.json(null);
@@ -173,13 +169,13 @@ export class ProfileController {
 
       console.log("Profile created:", profile);
       console.log("Profile type:", typeof profile);
-      console.log("Profile.id:", profile?.id, "type:", typeof profile?.id);
       console.log(
         "Profile.user_id:",
         profile?.user_id,
         "type:",
         typeof profile?.user_id
       );
+      console.log("Profile fields:", Object.keys(profile || {}));
 
       if (!profile) {
         return res.status(500).json({ error: "Failed to create profile" });
