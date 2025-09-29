@@ -1,11 +1,15 @@
 // src/routes/nutrition.ts
 import express from "express";
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from "../middleware/auth";
+import {
+  authenticateToken,
+  optionalAuth,
+  AuthenticatedRequest,
+} from "../middleware/auth";
 import { ProfileController } from "../controllers/profileController";
 import { FoodController } from "../controllers/foodController";
 import { MealController } from "../controllers/mealController";
-import { ChatController } from "../controllers/chatController";
 import { PromptController } from "../controllers/promptController";
+import { ChatbotController } from "../controllers/chatbotController";
 
 const router = express.Router();
 
@@ -15,7 +19,7 @@ router.use(authenticateToken);
 router.get("/profile", ProfileController.getProfile);
 router.put("/profile", ProfileController.updateProfile);
 
-// FOODS 
+// FOODS
 router.get("/foods", FoodController.searchFoods);
 router.get("/foods/:id", FoodController.getFoodById);
 
@@ -24,12 +28,13 @@ router.post("/meals", MealController.createMeal);
 router.get("/meals/today", MealController.getTodayProgress);
 
 // CHAT
-router.post("/chat/sessions", ChatController.createSession);
-router.get("/chat/sessions", ChatController.getSessions);
-router.post("/chat/messages", ChatController.createMessage);
-router.get("/chat/sessions/:id/messages", ChatController.getSessionMessages);
+router.post("/chat/sessions", ChatbotController.createSession);
+router.get("/chat/sessions", ChatbotController.getSessions);
+router.post("/chat/messages", ChatbotController.createMessage);
+router.get("/chat/sessions/:id/messages", ChatbotController.getSessionMessages);
 
 // PROMPTS
 router.post("/prompts", PromptController.createPrompt);
+
 
 export default router;
