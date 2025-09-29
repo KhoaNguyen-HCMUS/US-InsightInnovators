@@ -23,11 +23,52 @@ const ChatMsgBody = z.object({
 const HISTORY_TAKE = 20;
 
 async function getProfileContext(user_id: bigint) {
-  const p = await prisma.profiles.findUnique({ where: { user_id } }).catch(() => null);
+  const p = await prisma.profiles
+    .findUnique({ where: { user_id } })
+    .catch(() => null);
   if (!p) return undefined;
 
   const toNum = (d?: Prisma.Decimal | number | null) =>
     d == null ? undefined : Number(d);
+
+  // 🚀 ENHANCED: Lấy eating patterns gần đây (7 ngày)
+  const recentDate = new Date();
+  recentDate.setDate(recentDate.getDate() - 7);
+
+  const recentMeals = await prisma.meals.findMany({
+    where: { user_id, created_at: { gte: recentDate } },
+    orderBy: { created_at: "desc" },
+    take: 10,
+  });
+
+  // 🚀 ENHANCED: Lấy progress hôm nay
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayLogs = await prisma.user_food_logs.findMany({
+    where: { user_id, created_at: { gte: today } },
+  });
+
+  const todayTotals = todayLogs.reduce(
+    (acc: any, log: any) => {
+      acc.kcal += Number(log.kcal_snapshot || 0);
+      acc.protein += Number(log.protein_snapshot || 0);
+      acc.carbs += Number(log.carbs_snapshot || 0);
+      acc.fat += Number(log.fat_snapshot || 0);
+      return acc;
+    },
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  // 🚀 ENHANCED: Parse health constraints
+  const allergies = p.allergies_json ? (p.allergies_json as string[]) : [];
+  const conditions = p.conditions_json ? (p.conditions_json as string[]) : [];
+  const preferences = p.preferences_json
+    ? (p.preferences_json as string[])
+    : [];
+
+  // 🚀 ENHANCED: Meal frequency analysis
+  const mealFrequency = recentMeals.length;
+  const avgMealsPerDay = mealFrequency / 7;
 
   return {
     bmi: toNum(p.bmi),
@@ -38,6 +79,30 @@ async function getProfileContext(user_id: bigint) {
     sex: p.sex ?? undefined,
     height_cm: toNum(p.height_cm),
     weight_kg: toNum(p.weight_kg),
+    // 🎉 NEW ENHANCED CONTEXT
+    enhanced_context: {
+      today_consumed: todayTotals,
+      today_progress_percent: Math.round(
+        (todayTotals.kcal / Number(p.tdee || 2000)) * 100
+      ),
+      remaining_calories: Math.max(
+        0,
+        Number(p.tdee || 2000) - todayTotals.kcal
+      ),
+      recent_meal_frequency: avgMealsPerDay,
+      eating_pattern:
+        avgMealsPerDay >= 3
+          ? "regular"
+          : avgMealsPerDay >= 2
+          ? "moderate"
+          : "irregular",
+    },
+    health_constraints: {
+      allergies,
+      conditions,
+      preferences,
+      has_restrictions: allergies.length > 0 || conditions.length > 0,
+    },
   };
 }
 
@@ -53,26 +118,96 @@ async function generateNutritionReply(
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_ID });
 
+  // 🚀 ENHANCED SYSTEM PROMPT với context siêu thông minh
   const sysLines = [
-    "Bạn là trợ lý dinh dưỡng nói tiếng Việt, trả lời ngắn gọn, có số liệu rõ ràng.",
-    "Luôn kiểm tra dị ứng, sở thích nếu người dùng có nêu. Nếu thiếu dữ liệu hãy hỏi lại.",
-    "Khi gợi ý thực đơn, ước lượng macro mỗi món (kcal, P/C/F) khi hợp lý.",
+    "🥗 Bạn là chuyên gia dinh dưỡng AI thông minh, nói tiếng Việt tự nhiên, phân tích dữ liệu thực tế.",
+    "📊 LUÔN sử dụng số liệu cụ thể từ profile user: BMI, TDEE, progress hôm nay, eating patterns.",
+    "🚫 QUAN TRỌNG: Kiểm tra allergies và conditions trước khi gợi ý món ăn.",
+    "🎯 Đưa ra lời khuyên cá nhân hóa dựa trên mục tiêu (lose/gain/maintain) và activity level.",
+    "⚖️ Tính toán macro cụ thể cho mỗi gợi ý: kcal, protein(g), carbs(g), fat(g).",
+    "🔍 Nhận diện patterns: 'Bạn thường skip bữa sáng', 'Bạn đã ăn X% TDEE hôm nay'.",
+    "💡 Đưa insights thông minh: 'Dựa trên 7 ngày qua...', 'Để đạt mục tiêu, bạn nên...'",
+    "🌟 Trả lời ngắn gọn nhưng chính xác, có emoji và số liệu cụ thể.",
   ];
 
-  const profileLine = ctx
-    ? `Hồ sơ: ${ctx.sex ?? "?"}, ${ctx.height_cm ?? "?"}cm, ${ctx.weight_kg ?? "?"}kg, Mục tiêu: ${ctx.goal ?? "?"}, Hoạt động: ${ctx.activity_level ?? "?"}, BMI=${ctx.bmi ?? "?"}, BMR=${ctx.bmr ?? "?"}, TDEE=${ctx.tdee ?? "?"}.`
-    : "Chưa có hồ sơ người dùng (BMI/BMR/TDEE).";
+  let profileContext = "";
+  if (ctx) {
+    const bmi = ctx.bmi || 0;
+    const bmiCategory =
+      bmi < 18.5
+        ? "thiếu cân"
+        : bmi < 25
+        ? "bình thường"
+        : bmi < 30
+        ? "thừa cân"
+        : "béo phì";
 
-  const systemPrompt = `${sysLines.join("\n")}\n${profileLine}`;
+    profileContext = `
+📋 PROFILE USER:
+- Thể chất: ${ctx.sex}, ${ctx.height_cm}cm, ${
+      ctx.weight_kg
+    }kg, BMI ${bmi} (${bmiCategory})
+- Mục tiêu: ${ctx.goal} | Hoạt động: ${ctx.activity_level} | TDEE: ${
+      ctx.tdee
+    } kcal/ngày
+
+📈 TIẾN TRÌNH HÔM NAY:
+- Đã tiêu thụ: ${ctx.enhanced_context?.today_consumed?.kcal || 0} kcal (${
+      ctx.enhanced_context?.today_progress_percent || 0
+    }% TDEE)
+- Protein: ${ctx.enhanced_context?.today_consumed?.protein || 0}g | Carbs: ${
+      ctx.enhanced_context?.today_consumed?.carbs || 0
+    }g | Fat: ${ctx.enhanced_context?.today_consumed?.fat || 0}g
+- Còn lại: ${ctx.enhanced_context?.remaining_calories || 0} kcal có thể ăn
+
+🍽️ PATTERNS 7 NGÀY:
+- Tần suất ăn: ${
+      ctx.enhanced_context?.recent_meal_frequency?.toFixed(1) || 0
+    } bữa/ngày (${ctx.enhanced_context?.eating_pattern || "unknown"})
+
+⚠️ RÀNG BUỘC SỨC KHỎE:
+${
+  ctx.health_constraints?.allergies?.length > 0
+    ? `- Dị ứng: ${ctx.health_constraints.allergies.join(", ")}`
+    : "- Không dị ứng"
+}
+${
+  ctx.health_constraints?.conditions?.length > 0
+    ? `- Tình trạng: ${ctx.health_constraints.conditions.join(", ")}`
+    : "- Không có bệnh lý"
+}
+${
+  ctx.health_constraints?.preferences?.length > 0
+    ? `- Sở thích: ${ctx.health_constraints.preferences.join(", ")}`
+    : "- Không có sở thích đặc biệt"
+}
+
+🎯 HƯỚNG DẪN TỰ ĐỘNG:
+- Khi user hỏi gì ăn: Tham khảo calories còn lại + allergies + preferences
+- Khi user hỏi về progress: So sánh với TDEE target, đưa % cụ thể
+- Khi user hỏi eating pattern: Phân tích frequency 7 ngày, gợi ý cải thiện
+- Luôn đề cập đến mục tiêu ${ctx.goal} trong mọi lời khuyên
+`;
+  } else {
+    profileContext =
+      "❌ CHƯA CÓ PROFILE USER - Hãy tạo profile trước để được tư vấn cá nhân hóa!";
+  }
+
+  const systemPrompt = `${sysLines.join("\n")}\n${profileContext}`;
 
   const contents = [
     { role: "user", parts: [{ text: systemPrompt }] },
     ...messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
   ];
 
-  const resp = await model.generateContent({ contents });
-  const text = resp.response.text() || "";
-  return text.trim();
+  try {
+    const resp = await model.generateContent({ contents });
+    const text = resp.response.text() || "";
+    return text.trim();
+  } catch (error) {
+    console.error("🚨 Gemini API Error:", error);
+    return "Xin lỗi, hệ thống AI tạm thời gặp sự cố. Vui lòng thử lại sau ít phút. 🤖💔";
+  }
 }
 
 export class ChatbotController {
@@ -112,13 +247,16 @@ export class ChatbotController {
   static async createMessage(req: Request, res: Response) {
     try {
       const parsed = ChatMsgBody.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success)
+        return res.status(400).json({ error: parsed.error.flatten() });
 
       const user_id = (req as any).userId as bigint;
       const session_id = BigInt(parsed.data.session_id as any);
 
       // đảm bảo session thuộc về user hiện tại (bảo mật)
-      const session = await prisma.chat_sessions.findUnique({ where: { id: session_id } });
+      const session = await prisma.chat_sessions.findUnique({
+        where: { id: session_id },
+      });
       if (!session || session.user_id !== user_id) {
         return res.status(404).json({ error: "Session not found" });
       }
@@ -197,7 +335,11 @@ export class ChatbotController {
       // 8) Trả về
       res.json({
         user_message: { id: userMsg.id, turn_index: nextTurn },
-        assistant_message: { id: assistantMsg.id, turn_index: nextTurn + 1, content: llmText },
+        assistant_message: {
+          id: assistantMsg.id,
+          turn_index: nextTurn + 1,
+          content: llmText,
+        },
       });
     } catch (error) {
       console.error("❌ createMessage error:", error);
@@ -212,7 +354,9 @@ export class ChatbotController {
       const session_id = BigInt(req.params.id);
 
       // bảo đảm quyền truy cập
-      const session = await prisma.chat_sessions.findUnique({ where: { id: session_id } });
+      const session = await prisma.chat_sessions.findUnique({
+        where: { id: session_id },
+      });
       if (!session || session.user_id !== user_id) {
         return res.status(404).json({ error: "Session not found" });
       }

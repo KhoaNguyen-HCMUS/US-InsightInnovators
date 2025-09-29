@@ -125,4 +125,134 @@ export class ProfileController {
       res.status(500).json({ error: "Internal server error" });
     }
   }
+
+  // GET /profile/insights - Phân tích thông minh về sức khỏe
+  static async getProfileInsights(req: Request, res: Response) {
+    try {
+      const user_id = (req as any).userId as bigint;
+      const profile = await prisma.profiles.findUnique({ where: { user_id } });
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+
+      // Helper functions for health analysis
+      const getBMICategory = (bmi: number) => {
+        if (bmi < 18.5) return { category: "underweight", message: "Bạn đang thiếu cân, cần tăng cường dinh dưỡng" };
+        if (bmi < 25) return { category: "normal", message: "BMI bình thường, hãy duy trì lối sống lành mạnh" };
+        if (bmi < 30) return { category: "overweight", message: "Bạn đang thừa cân, nên giảm 5-10% trọng lượng" };
+        return { category: "obese", message: "Cần giảm cân nghiêm túc, hãy tham khảo chuyên gia" };
+      };
+
+      const getCalorieTarget = (goal: string, tdee: number) => {
+        switch (goal) {
+          case "lose": return Math.round(tdee * 0.8); // Deficit 20%
+          case "gain": return Math.round(tdee * 1.15); // Surplus 15%
+          default: return tdee;
+        }
+      };
+
+      const getMacroTargets = (calories: number, goal: string) => {
+        if (goal === "gain") {
+          return {
+            protein: Math.round(calories * 0.25 / 4), // 25% protein
+            carbs: Math.round(calories * 0.45 / 4), // 45% carbs
+            fat: Math.round(calories * 0.30 / 9), // 30% fat
+          };
+        } else if (goal === "lose") {
+          return {
+            protein: Math.round(calories * 0.30 / 4), // 30% protein
+            carbs: Math.round(calories * 0.40 / 4), // 40% carbs
+            fat: Math.round(calories * 0.30 / 9), // 30% fat
+          };
+        } else {
+          return {
+            protein: Math.round(calories * 0.20 / 4), // 20% protein
+            carbs: Math.round(calories * 0.50 / 4), // 50% carbs
+            fat: Math.round(calories * 0.30 / 9), // 30% fat
+          };
+        }
+      };
+
+      const bmi = Number(profile.bmi);
+      const tdee = Number(profile.tdee);
+      const bmiAnalysis = getBMICategory(bmi);
+      const targetCalories = getCalorieTarget(profile.goal, tdee);
+      const macroTargets = getMacroTargets(targetCalories, profile.goal);
+
+      const insights = {
+        health_status: {
+          bmi: { value: bmi, ...bmiAnalysis },
+          weight_status: profile.goal === "lose" ? "Đang giảm cân" : 
+                        profile.goal === "gain" ? "Đang tăng cân" : "Duy trì cân nặng",
+        },
+        targets: {
+          daily_calories: targetCalories,
+          macros: macroTargets,
+          water_ml: Math.round(Number(profile.weight_kg) * 35), // 35ml/kg
+        },
+        recommendations: [
+          bmiAnalysis.message,
+          `Mục tiêu ${targetCalories} calories/ngày để ${profile.goal === "lose" ? "giảm cân" : 
+            profile.goal === "gain" ? "tăng cân" : "duy trì"}`,
+          `Uống ${Math.round(Number(profile.weight_kg) * 35)}ml nước mỗi ngày`,
+        ],
+      };
+
+      res.json({ insights, profile_summary: profile });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  // GET /profile/constraints - Các ràng buộc sức khỏe và sở thích
+  static async getHealthConstraints(req: Request, res: Response) {
+    try {
+      const user_id = (req as any).userId as bigint;
+      const profile = await prisma.profiles.findUnique({ where: { user_id } });
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+
+      const allergies = profile.allergies_json ? (profile.allergies_json as string[]) : [];
+      const conditions = profile.conditions_json ? (profile.conditions_json as string[]) : [];
+      const preferences = profile.preferences_json ? (profile.preferences_json as string[]) : [];
+
+      // Parse health constraints
+      const healthConstraints = {
+        allergies: {
+          items: allergies,
+          restrictions: allergies.map((allergy: string) => `Tránh hoàn toàn ${allergy}`),
+        },
+        medical_conditions: {
+          items: conditions,
+          guidelines: conditions.map((condition: string) => {
+            switch (condition.toLowerCase()) {
+              case "diabetes": return "Hạn chế đường, ưu tiên complex carbs";
+              case "hypertension": return "Giảm muối <2g/ngày, tăng kali";
+              case "high_cholesterol": return "Tránh trans fat, tăng omega-3";
+              default: return `Điều chỉnh chế độ ăn phù hợp với ${condition}`;
+            }
+          }),
+        },
+        dietary_preferences: {
+          items: preferences,
+          focus: preferences.map((pref: string) => {
+            switch (pref.toLowerCase()) {
+              case "vegetarian": return "Ưu tiên protein thực vật";
+              case "keto": return "Cao fat, thấp carb <20g/ngày";
+              case "mediterranean": return "Dầu olive, cá, rau củ";
+              case "low_carb": return "Giảm carb <100g/ngày";
+              default: return `Tuân theo chế độ ${pref}`;
+            }
+          }),
+        },
+      };
+
+      res.json({ constraints: healthConstraints, profile_id: profile.user_id });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
 }
