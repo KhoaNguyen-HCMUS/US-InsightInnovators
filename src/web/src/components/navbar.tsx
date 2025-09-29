@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
-import { isAuthenticated, getUserName, clearAuthData } from '../utils/authStorage'
+import { isAuthenticated, getUserEmail, clearAuthData } from '../utils/authStorage'
 import logo from '../../public/logo.png'
 import ThemeToggle from './themeToggle'	
 
@@ -15,7 +15,7 @@ export default function Navbar() {
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const isAuth = isAuthenticated()
-  const userName = getUserName()
+  const userName = getUserEmail()
 
   const handleLogout = () => {
     clearAuthData()

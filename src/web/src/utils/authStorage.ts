@@ -1,6 +1,5 @@
 export interface AuthData {
   access_token: string;
-  full_name: string;
   email: string;
 }
 
@@ -33,11 +32,6 @@ export const getTokenFromCookie = (): string | null => {
 export const getToken = (): string | null => {
   const authData = getAuthData();
   return authData?.access_token || null;
-};
-
-export const getUserName = (): string | null => {
-  const authData = getAuthData();
-  return authData?.full_name || null;
 };
 
 export const getUserEmail = (): string | null => {

@@ -1,23 +1,25 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { register } from '../services/auth'
-import { saveAuthData } from '../utils/authStorage'
 import { toast } from 'react-toastify'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await register({ full_name: name, email, password })
-      if (res.success && res.data) {
-        saveAuthData({ access_token: res.data.access_token, full_name: res.data.full_name, email: res.data.email })
+      if (password !== confirmPassword) {
+        toast.error('Passwords do not match')
+        return
+      }
+      const res = await register({ email, password, confirmPassword })
+      if (res.success) {
         toast.success('Register successful. Please login to continue.')
         navigate('/login')
       } else {
@@ -39,17 +41,6 @@ export default function RegisterPage() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl p-6 border bg-bg-card border-border-light">
           <div className="space-y-1">
-            <label className="text-sm text-text-muted" >Full name</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-md px-3 py-2 border outline-none focus:ring-4 bg-bg text-text-body border-border-light box-shadow-none"
-              placeholder="Enter your full name"
-            />
-          </div>
-          <div className="space-y-1">
             <label className="text-sm text-text-muted" >Email</label>
             <input 
               type="email"
@@ -69,6 +60,17 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-md px-3 py-2 border outline-none focus:ring-4 bg-bg text-text-body border-border-light box-shadow-none"
               placeholder="Enter your password"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm text-text-muted" >Confirm password</label>
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full rounded-md px-3 py-2 border outline-none focus:ring-4 bg-bg text-text-body border-border-light box-shadow-none"
+              placeholder="Confirm your password"
             />
           </div>
           <button type="submit" disabled={loading} className="w-full rounded-md px-4 py-2 font-medium bg-primary text-primary-contrast disabled:opacity-60">

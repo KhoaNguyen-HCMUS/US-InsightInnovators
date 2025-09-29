@@ -1,7 +1,7 @@
 export interface RegisterRequest {
-	full_name: string;
 	email: string;
 	password: string;
+	confirmPassword: string;
 }
 
 export interface LoginRequest {
@@ -9,45 +9,32 @@ export interface LoginRequest {
 	password: string;
 }
 
+export interface AuthUser {
+	id: string;
+	email: string;
+	created_at: string;
+}
+
 export interface AuthResponse {
 	success: boolean;
 	message: string;
-	data?: {
-		access_token: string;
-		expires_in: number;
-		email: string;
-		full_name: string;
-	};
+	data?: { user: AuthUser, token: string };
 }
 
-export const register = async (payload: RegisterRequest) : Promise<AuthResponse> => {
-	return {
-		success: true,
-		message: "Register successful",
-		data: {
-			access_token: "dummy_access_token",
-			expires_in: 3600,
-			email: payload.email,
-			full_name: payload.full_name,
-		},
-	};
+import { request } from '../utils/api';
+import { saveAuthData } from '../utils/authStorage';
+
+export const register = async (payload: RegisterRequest): Promise<AuthResponse> => {
+	return await request<RegisterRequest, AuthResponse>("POST", "/api/auth/register", payload);
 };
 
-export const login = async (payload: LoginRequest) : Promise<AuthResponse> => {
-	if(payload.email === "admin@example.com" && payload.password === "admin") {
-		return {
-			success: true,
-			message: "Login successful",
-			data: {
-				access_token: "dummy_access_token",
-				expires_in: 3600,
-				email: payload.email,
-				full_name: "Admin User",
-			},
-		};
+export const login = async (payload: LoginRequest): Promise<AuthResponse> => {
+	const resp = await request<LoginRequest, AuthResponse>("POST", "/api/auth/login", payload);
+	if (resp.success) {
+		saveAuthData({
+			access_token: resp.data?.token as string,
+			email: resp.data?.user.email as string,
+		});
 	}
-	return {
-		success: false,
-		message: "Login failed",
-	};
+	return resp;
 };

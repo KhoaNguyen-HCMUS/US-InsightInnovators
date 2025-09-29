@@ -16,10 +16,10 @@ export default function LoginPage() {
     try {
       const res = await login({ email, password })
       if (res.success && res.data) {
-        saveAuthData({ access_token: res.data.access_token, full_name: res.data.full_name, email: res.data.email })
+        saveAuthData({ access_token: res.data.token as string, email: res.data.user.email as string })
         navigate('/dashboard')
         toast.success('Login successful')
-        window.location.reload()
+        // window.location.reload()
       } else {
         toast.error(res.message || 'Login failed')
       }

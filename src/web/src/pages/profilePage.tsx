@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { calculateHealthIndices, validateHealthProfile } from '../utils/healthCalculations';
-import { getUserName, getUserEmail } from '../utils/authStorage';
+import { getUserEmail } from '../utils/authStorage';
 
 import type { HealthProfile, HealthIndices } from '../types/health';
 import ProfileHeader from '../components/profile/profileHeader';
@@ -42,9 +42,8 @@ export default function ProfilePage() {
   const [healthIndices, setHealthIndices] = useState<HealthIndices | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-const userName = getUserName() || '';
+  const userName = getUserEmail() || '';
   const userEmail = getUserEmail() || '';
-
   useEffect(() => {
     if (profile.consent && profile.personalInfo && profile.goals && profile.activityLevel) {
       try {
