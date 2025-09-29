@@ -1,20 +1,22 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { PrismaClient } from "@prisma/client";
 import nutritionRoutes from "./routes/nutrition.js";
 
+
+import authRoutes from "./routes/auth";
 
 dotenv.config();
 
 const app = express();
 
-const prisma = new PrismaClient();
+
 app.use(cors());
 app.use(express.json());
 
 // Mount routes
-app.use("/api/nutrition", nutritionRoutes); 
+app.use("/api/auth", authRoutes);
+
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 const PORT = Number(process.env.PORT) || 5000;
