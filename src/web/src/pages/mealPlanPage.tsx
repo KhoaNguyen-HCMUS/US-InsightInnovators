@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import type { MealPlan, SubstitutionSuggestion, GroceryItem } from '../types/mealPlan';
 import type { HealthProfile } from '../types/health';
+import type { MealPlanResponseData } from '../services/mealPlan';
+import { mapApiResponseToMealPlan } from '../utils/mealPlanMapper';
 import MealPlanGenerator from '../components/mealPlan/mealPlanGenerator';
 import MealPlanDisplay from '../components/mealPlan/mealPlanDisplay';
 import MealSubstitution from '../components/mealPlan/mealSubstitution';
@@ -43,7 +45,8 @@ export default function MealPlanPage() {
     consent: true
   });
 
-  const handleMealPlanGenerated = (newMealPlan: MealPlan) => {
+  const handleMealPlanGenerated = (responseData: MealPlanResponseData) => {
+    const newMealPlan = mapApiResponseToMealPlan(responseData);
     setMealPlan(newMealPlan);
     toast.success(`${newMealPlan.duration === 'weekly' ? 'Weekly' : 'Monthly'} meal plan generated successfully!`);
   };
