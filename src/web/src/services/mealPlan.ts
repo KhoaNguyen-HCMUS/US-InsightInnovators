@@ -95,17 +95,13 @@ export interface MealPlanResponse {
   data: MealPlanResponseData;
 }
 
-export const generateMealPlan = async (
-  mealPlanRequest: MealPlanRequestBody
-): Promise<MealPlanResponse> => {
+export const generateMealPlan = async (mealPlanRequest: MealPlanRequestBody): Promise<MealPlanResponse> => {
   try {
     const response = await requestAuth<MealPlanResponse, MealPlanRequestBody>(
       'POST',
       '/api/meal-plans',
       mealPlanRequest
     );
-    
-    console.log('Meal plan generation response:', response);
     return response;
   } catch (error) {
     console.error('Error generating meal plan:', error);
@@ -113,15 +109,9 @@ export const generateMealPlan = async (
   }
 };
 
-export const fetchMealPlanDetails = async (
-  mealPlanId: string
-): Promise<MealPlanResponse> => {
+export const fetchMealPlanDetails = async (mealPlanId: string): Promise<MealPlanResponse> => {
   try {
-    const response = await requestAuth<MealPlanResponse>(
-      'GET',
-      `/api/meal-plans/${mealPlanId}`
-    );
-    
+    const response = await requestAuth<MealPlanResponse>('GET', `/api/meal-plans/${mealPlanId}`);
     return response;
   } catch (error) {
     console.error('Error fetching meal plan details:', error);
@@ -144,15 +134,10 @@ interface GroceryListResponse {
   };
 }
 
-export const fetchMealPlanGroceryList = async (
-  mealPlanId: string
-): Promise<GroceryListResponse> => {
+export const fetchMealPlanGroceryList = async (mealPlanId: string): Promise<GroceryListResponse> => {
   try {
-    const response = await requestAuth<GroceryListResponse>(
-      'GET',
-      `/api/meal-plans/${mealPlanId}/grocery-list`
-    );
-    
+    const response = await requestAuth<GroceryListResponse>('GET', `/api/meal-plans/${mealPlanId}/grocery-list`);
+
     return response;
   } catch (error) {
     console.error('Error fetching grocery list:', error);

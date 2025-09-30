@@ -7,23 +7,6 @@ const HealthAssistant: React.FC = () => {
   const navigate = useNavigate();
   const isAuth = isAuthenticated();
 
-  useEffect(() => {
-    if (!isAuth) {
-      navigate('/login');
-    }
-  }, [isAuth, navigate]);
-
-  // ✅ 3. Chỉ render ChatContainer nếu đã đăng nhập
-  if (!isAuth) {
-    // Hiển thị một màn hình trống hoặc loading trong khi chuyển hướng
-    return (
-        <div className="h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-center">
-                <p className="text-gray-600">Redirecting to login...</p>
-            </div>
-        </div>
-    );
-  }
 
   return (
     <div className="h-screen bg-gray-50">

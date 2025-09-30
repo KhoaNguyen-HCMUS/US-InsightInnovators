@@ -26,7 +26,7 @@ const ChatContainer: React.FC = () => {
   // Load messages when session changes
   useEffect(() => {
     if (currentSession) {
-      loadChatHistory(currentSession.id);
+      loadChatHistory(currentSession.session_id);
     } else {
       setMessages([]);
     }
@@ -38,7 +38,7 @@ const ChatContainer: React.FC = () => {
       setIsLoadingSessions(true);
       const response = await ChatService.getUserSessions();
       setSessions(response.data);
-      
+
       // Auto-select most recent session if available
       if (response.data.length > 0) {
         setCurrentSession(response.data[0]);
@@ -56,7 +56,14 @@ const ChatContainer: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await ChatService.getChatHistory(sessionId);
-      setMessages(response.data.messages || []);
+      console.log('Chat history response:', response);
+
+      if (response.data && response.data.messages) {
+        setMessages(response.data.messages);
+      } else {
+        setMessages([]);
+        console.warn('No messages found in the response');
+      }
     } catch (error) {
       console.error('Failed to load chat history:', error);
       setError('Không thể tải lịch sử trò chuyện');
@@ -73,13 +80,13 @@ const ChatContainer: React.FC = () => {
       const request: CreateSessionRequest = {
         purpose: 'medical_diagnosis',
         lang: 'vi',
-        model_name: 'gemini-2.0-flash-exp'
       };
 
       const newSession = await ChatService.createSession(request);
-      
+      console.log('New session created:', newSession);
+
       // Update sessions list
-      setSessions(prev => [newSession, ...prev]);
+      setSessions((prev) => [newSession, ...prev]);
       setCurrentSession(newSession);
       setMessages([]);
       setError(null);
@@ -102,33 +109,33 @@ const ChatContainer: React.FC = () => {
 
     try {
       setIsLoading(true);
-      
+
       // Add user message to UI immediately
       const userMessage: ChatMessage = {
         role: 'user',
         content,
         turn_index: messages.length,
-        created_at: new Date(),
+        created_at: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
 
       // Send to backend
       const response = await ChatService.sendMessage({
-        session_id: currentSession.id,
-        content
+        session_id: currentSession.session_id,
+        content,
       });
 
       // Replace messages with response from backend
       setMessages(response.data.messages);
-      
+
       // Scroll to bottom
       ChatUtils.scrollToBottom('messages-container');
     } catch (error) {
       console.error('Failed to send message:', error);
       setError('Không thể gửi tin nhắn. Vui lòng thử lại.');
-      
+
       // Remove the user message on error
-      setMessages(prev => prev.slice(0, -1));
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
@@ -146,11 +153,11 @@ const ChatContainer: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className='flex h-screen bg-linear-(--gradient-primary) overflow-hidden'>
       {/* Session Sidebar */}
       <SessionSidebar
         sessions={sessions}
-        currentSessionId={currentSession?.id || null}
+        currentSessionId={currentSession?.session_id || null}
         onSelectSession={selectSession}
         onNewSession={createNewSession}
         isLoading={isLoadingSessions}
@@ -159,7 +166,7 @@ const ChatContainer: React.FC = () => {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className='flex-1 flex flex-col min-w-0 relative bg-bg'>
         {/* Chat Header */}
         <ChatHeader
           currentSession={currentSession}
@@ -170,15 +177,20 @@ const ChatContainer: React.FC = () => {
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-4 mt-4">
-            <div className="flex">
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="text-sm text-red-600 hover:text-red-800 underline mt-1"
-                >
-                  Đóng
+          <div className='bg-error-bg border-l-4 border-error p-4 mx-4 mt-2 mb-1 rounded-r-md shadow-sm'>
+            <div className='flex items-center'>
+              <svg className='w-5 h-5 text-error mr-2' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  strokeWidth='2'
+                  d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+                />
+              </svg>
+              <div>
+                <p className='text-sm font-medium text-error-foreground'>{error}</p>
+                <button onClick={() => setError(null)} className='text-xs text-error hover:underline mt-1'>
+                  Đóng thông báo
                 </button>
               </div>
             </div>
@@ -186,30 +198,31 @@ const ChatContainer: React.FC = () => {
         )}
 
         {/* Chat Content */}
-        {!currentSession && !isLoadingSessions ? (
-          <ChatWelcome onStartChat={createNewSession} />
-        ) : (
-          <>
-            {/* Messages */}
-            <div id="messages-container" className="flex-1 overflow-hidden">
-              <MessageList 
-                messages={messages} 
-                isLoading={isLoading && messages.length > 0}
-              />
-            </div>
+        <div className='flex-1 flex flex-col overflow-hidden relative'>
+          {!currentSession && !isLoadingSessions ? (
+            <ChatWelcome onStartChat={createNewSession} />
+          ) : (
+            <>
+              {/* Messages */}
+              <div id='messages-container' className='flex-1 overflow-hidden relative'>
+                <MessageList
+                  messages={messages}
+                  isLoading={isLoading && messages.length > 0}
+                  className='absolute inset-0'
+                />
+              </div>
 
-            {/* Message Input */}
-            <MessageInput
-              onSendMessage={sendMessage}
-              disabled={isLoading}
-              placeholder={
-                currentSession 
-                  ? "Nhập câu hỏi về sức khỏe..." 
-                  : "Đang tạo phiên mới..."
-              }
-            />
-          </>
-        )}
+              {/* Message Input */}
+              <div className='w-full bg-bg-card shadow-md z-10'>
+                <MessageInput
+                  onSendMessage={sendMessage}
+                  disabled={isLoading}
+                  placeholder={currentSession ? 'Nhập câu hỏi về sức khỏe...' : 'Đang tạo phiên mới...'}
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import type {
 
 export class ChatService {
   private static getApiUrl(): string {
-    return (import.meta).env?.VITE_API_URL || "";
+    return import.meta.env?.VITE_API_URL || '';
   }
 
   private static getHeaders(): HeadersInit {
@@ -18,11 +18,11 @@ export class ChatService {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     return headers;
   }
 
@@ -35,12 +35,11 @@ export class ChatService {
         body: JSON.stringify({
           purpose: request.purpose || 'medical_diagnosis',
           lang: request.lang || 'vi',
-          model_name: request.model_name || 'gemini-2.0-flash-exp',
         }),
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
       }
@@ -49,7 +48,7 @@ export class ChatService {
         throw new Error(data.message || 'Failed to create session');
       }
 
-      return data.data.session;
+      return data.data;
     } catch (error) {
       console.error('❌ Create session error:', error);
       throw error;
@@ -64,9 +63,9 @@ export class ChatService {
         headers: this.getHeaders(),
         body: JSON.stringify(request),
       });
-
+      console.log('Send message request:', request);
       const data = await response.json();
-      
+      console.log('Send message response:', data);
       if (!response.ok) {
         throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
       }
@@ -85,13 +84,14 @@ export class ChatService {
   // Get chat history for session
   static async getChatHistory(sessionId: string): Promise<ChatHistoryResponse> {
     try {
+      // According to the API documentation, the parameter is directly in the path, not a query parameter
       const response = await fetch(`${this.getApiUrl()}/api/chat/session?sessionId=${sessionId}`, {
         method: 'GET',
         headers: this.getHeaders(),
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
       }
@@ -116,7 +116,7 @@ export class ChatService {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
       }
