@@ -1,9 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { PrismaClient } from '../generated/prisma';
+const prisma = require("../../prisma/client");
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 // Validation schemas
 const registerSchema = z.object({
