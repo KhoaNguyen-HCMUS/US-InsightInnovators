@@ -6,7 +6,6 @@ import {
   AuthenticatedRequest,
 } from "../middleware/auth";
 import { ProfileController } from "../controllers/profileController";
-import { FoodController } from "../controllers/foodController";
 import { MealController } from "../controllers/mealController";
 import { PromptController } from "../controllers/promptController";
 import { ChatbotController } from "../controllers/chatbotController";
@@ -22,13 +21,6 @@ router.post("/profile", ProfileController.createProfile);
 router.put("/profile", ProfileController.updateProfile);
 router.get("/profile/insights", ProfileController.getProfileInsights);
 router.get("/profile/constraints", ProfileController.getHealthConstraints);
-
-// FOODS - Smart recommendations
-router.get("/foods", FoodController.searchFoods);
-router.get("/foods/:id", FoodController.getFoodById);
-router.get("/foods/recommend", FoodController.recommendFoods);
-router.get("/foods/:id/alternatives", FoodController.getFoodAlternatives);
-router.get("/foods/nutrients/gaps", FoodController.analyzeNutrientGaps);
 
 // MEALS - Advanced analytics
 router.post("/meals", MealController.createMeal);
