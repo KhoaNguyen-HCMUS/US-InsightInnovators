@@ -12,6 +12,7 @@ import ProfilePage from './pages/profilePage'
 import MealPlanPage from './pages/mealPlanPage'
 import DashboardPage from './pages/dashboardPage'
 import FoodRecognitionPage from './pages/foodRecognitionPage';
+import SystemArchitectureDiagram from './pages/system-architecture-diagram';
 
 function App() {
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/meal-plans" element={<MealPlanPage />} />
           <Route path="/food-recognition" element={<FoodRecognitionPage />} />
+          <Route path="/system-architecture" element={<SystemArchitectureDiagram />} />
         </Routes>
         <ToastContainer
                   position='top-right'
