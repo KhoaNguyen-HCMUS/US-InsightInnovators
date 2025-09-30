@@ -39,12 +39,6 @@ async def predict_food(file: UploadFile = File(...)):
     result = classify_food(contents)
     return result
 
-@app.post("/predict-food101")
-async def predict_food(file: UploadFile = File(...)):
-    contents = await file.read()
-    result = classify_food(contents)
-    return result
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
