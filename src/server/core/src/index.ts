@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth";
+import foodRoutes from "./routes/food";
 
 dotenv.config();
 
@@ -12,6 +13,7 @@ app.use(express.json());
 
 // Mount routes
 app.use("/api/auth", authRoutes);
+app.use("/api", foodRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
