@@ -4,7 +4,7 @@
 
 **Comprehensive AI-Powered Nutrition Advisory System** - Complete backend API documentation providing intelligent nutrition tracking, personalized food recommendations, AI-powered meal planning, behavioral analysis, and context-aware chatbot functionality.
 
-**Base URL**: `http://localhost:3000/api`
+**Base URL**: `http://localhost:5000/api/`
 
 **Authentication**: All endpoints require JWT authentication via `Authorization: Bearer <token>` header.
 
@@ -764,7 +764,184 @@ Get conversation history for a specific session.
 
 ---
 
-## 🧠 AI Prompt Management
+## � Chatbot APIs
+
+### Create Chat Session
+
+**POST** `/chat/sessions`
+
+Create a new chat session for nutrition consultation. All sessions are automatically assigned `purpose: "nutrition_assistant"`.
+
+**Request Body:**
+
+```json
+{
+  "title": "Meal Planning Consultation",
+  "context": "meal_planning"
+}
+```
+
+**Context Options:**
+
+- `meal_planning` - Meal plan consultation
+- `weight_loss` - Weight management advice
+- `nutrition_analysis` - Food analysis
+- `recipe_suggestions` - Cooking guidance
+- `health_consultation` - Medical nutrition advice
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "session_id": "123",
+    "title": "Meal Planning Consultation",
+    "context": "meal_planning",
+    "purpose": "nutrition_assistant",
+    "created_at": "2025-09-30T10:00:00Z",
+    "status": "active"
+  }
+}
+```
+
+### Get All Chat Sessions
+
+**GET** `/chat/sessions`
+
+Retrieve all chat sessions for the authenticated user. All sessions have `purpose: "nutrition_assistant"`.
+
+**Query Parameters:**
+
+- `limit` (optional): Number of sessions (default: 10)
+- `status` (optional): Filter by status (active, archived)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "session_id": "123",
+      "title": "Meal Planning Consultation",
+      "context": "meal_planning",
+      "purpose": "nutrition_assistant",
+      "created_at": "2025-09-30T10:00:00Z",
+      "last_message_at": "2025-09-30T10:30:00Z",
+      "message_count": 5,
+      "status": "active"
+    }
+  ],
+  "pagination": {
+    "total": 15,
+    "page": 1,
+    "limit": 10
+  }
+}
+```
+
+### Send Chat Message
+
+**POST** `/chat/messages`
+
+Send a message to the AI nutrition assistant for intelligent advice.
+
+**Request Body:**
+
+```json
+{
+  "session_id": "123",
+  "message": "Tôi nên ăn gì để giảm cân nhanh mà vẫn đảm bảo sức khỏe?",
+  "context": {
+    "user_goal": "weight_loss",
+    "current_weight": 70,
+    "target_weight": 65,
+    "timeline": "3_months",
+    "current_meal_plan_id": "9"
+  }
+}
+```
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message_id": "456",
+    "session_id": "123",
+    "user_message": "Tôi nên ăn gì để giảm cân nhanh mà vẫn đảm bảo sức khỏe?",
+    "ai_response": "Để giảm cân hiệu quả và an toàn, bạn nên:\n\n1. **Tạo deficit calories hợp lý**: Giảm 300-500 calories/ngày\n2. **Ăn nhiều protein**: Giúp duy trì cơ bắp (1.6-2.2g/kg thể trọng)\n3. **Chọn carbs phức hợp**: Gạo lứt, yến mạch, khoai lang\n4. **Ăn nhiều rau xanh**: Ít calories, nhiều chất xơ\n5. **Uống đủ nước**: 2-3 lít/ngày\n\n**Gợi ý thực đơn:**\n- Sáng: Cháo yến mạch + trứng\n- Trưa: Cơm gạo lứt + thịt nạc + rau\n- Tối: Salad + cá nướng\n\nBạn có muốn tôi tạo meal plan cụ thể không?",
+    "ai_suggestions": [
+      {
+        "type": "meal_plan",
+        "title": "Tạo meal plan giảm cân 7 ngày",
+        "action": "create_meal_plan",
+        "params": {
+          "duration": "weekly",
+          "goal": "weight_loss",
+          "target_calories": 1600
+        }
+      }
+    ],
+    "context_used": {
+      "user_goal": "weight_loss",
+      "current_weight": 70,
+      "target_weight": 65
+    },
+    "timestamp": "2025-09-30T10:15:00Z"
+  }
+}
+```
+
+### Get Session Messages
+
+**GET** `/chat/sessions/{id}/messages`
+
+Retrieve all messages from a specific nutrition consultation session.
+
+**Query Parameters:**
+
+- `limit` (optional): Number of messages (default: 50)
+- `offset` (optional): Skip messages for pagination
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "session_info": {
+      "session_id": "123",
+      "title": "Meal Planning Consultation",
+      "context": "meal_planning",
+      "purpose": "nutrition_assistant",
+      "created_at": "2025-09-30T10:00:00Z"
+    },
+    "messages": [
+      {
+        "message_id": "456",
+        "user_message": "Tôi nên ăn gì để giảm cân?",
+        "ai_response": "Để giảm cân hiệu quả...",
+        "timestamp": "2025-09-30T10:15:00Z",
+        "context_used": {
+          "user_goal": "weight_loss"
+        }
+      }
+    ],
+    "pagination": {
+      "total_messages": 5,
+      "limit": 50,
+      "offset": 0
+    }
+  }
+}
+```
+
+---
+
+## �🧠 AI Prompt Management
 
 ### Create Prompt
 
@@ -931,11 +1108,19 @@ const profile = await fetch("/api/nutrition/profile", {
 });
 
 // 2. Get health insights
-const insights = await fetch("/api/nutrition/profile/insights");
+const insights = await fetch("/api/nutrition/profile/insights", {
+  headers: {
+    Authorization: "Bearer " + token,
+  },
+});
 
 // 3. Log breakfast
 const meal = await fetch("/api/nutrition/meals", {
   method: "POST",
+  headers: {
+    Authorization: "Bearer " + token,
+    "Content-Type": "application/json",
+  },
   body: JSON.stringify({
     meal_type: "breakfast",
     items: [
@@ -947,15 +1132,31 @@ const meal = await fetch("/api/nutrition/meals", {
 
 // 4. Get smart recommendations
 const recommendations = await fetch(
-  "/api/nutrition/foods/recommend?meal_type=lunch"
+  "/api/nutrition/foods/recommend?meal_type=lunch",
+  {
+    headers: {
+      Authorization: "Bearer " + token,
+    },
+  }
 );
 
-// 5. Chat with AI
-const session = await fetch("/api/nutrition/chat/sessions", { method: "POST" });
-const sessionId = session.session_id;
+// 5. Chat with AI (session automatically gets purpose: "nutrition_assistant")
+const session = await fetch("/api/nutrition/chat/sessions", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer " + token,
+    "Content-Type": "application/json",
+  },
+});
+const sessionData = await session.json();
+const sessionId = sessionData.data.session_id;
 
 const aiResponse = await fetch("/api/nutrition/chat/messages", {
   method: "POST",
+  headers: {
+    Authorization: "Bearer " + token,
+    "Content-Type": "application/json",
+  },
   body: JSON.stringify({
     session_id: sessionId,
     role: "user",
@@ -1022,7 +1223,7 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL_ID=gemini-1.5-flash
 DATABASE_URL=your_postgres_connection_string
 JWT_SECRET=your_jwt_secret
-PORT=5000
+PORT=3000
 ```
 
 ### Rate Limiting Recommendations
@@ -1791,7 +1992,7 @@ TOKEN="your-jwt-token-here"
 
 # Get profile
 curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:5000/api/nutrition/profile
+     http://localhost:3000/api/nutrition/profile
 
 # Update profile with full data
 curl -X PUT \
@@ -1807,11 +2008,11 @@ curl -X PUT \
        "allergies_json": {"nuts": true, "dairy": false},
        "preferences_json": {"vegetarian": true, "mediterranean": false}
      }' \
-     http://localhost:5000/api/nutrition/profile
+     http://localhost:3000/api/nutrition/profile
 
 # Search foods
 curl -H "Authorization: Bearer $TOKEN" \
-     "http://localhost:5000/api/nutrition/foods?query=apple&page=1&pageSize=5"
+     "http://localhost:3000/api/nutrition/foods?query=apple&page=1&pageSize=5"
 
 # Create meal with multiple items
 curl -X POST \
@@ -1826,9 +2027,9 @@ curl -X POST \
          {"food_id": "789", "qty_grams": 200}
        ]
      }' \
-     http://localhost:5000/api/nutrition/meals
+     http://localhost:3000/api/nutrition/meals
 
-# Chat with AI
+# Chat with AI (session automatically has purpose: "nutrition_assistant")
 curl -X POST \
      -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
@@ -1837,19 +2038,19 @@ curl -X POST \
        "role": "user",
        "content": "Tôi nên ăn gì để tăng cân khỏe mạnh?"
      }' \
-     http://localhost:5000/api/nutrition/chat/messages
+     http://localhost:3000/api/nutrition/chat/messages
 
 ```
 
 ---
 
-## 🤖 Chatbot APIs
+## 🤖 Chatbot APIs (Nutrition Assistant)
 
 ### Create Chat Session
 
 **POST** `/chat/sessions`
 
-Create a new chat session for nutrition consultation.
+Create a new chat session for nutrition consultation. **All sessions are automatically assigned `purpose: "nutrition_assistant"`**.
 
 **Request Body:**
 
@@ -1877,6 +2078,7 @@ Create a new chat session for nutrition consultation.
     "session_id": "123",
     "title": "Meal Planning Consultation",
     "context": "meal_planning",
+    "purpose": "nutrition_assistant",
     "created_at": "2025-09-30T10:00:00Z",
     "status": "active"
   }
@@ -1887,7 +2089,7 @@ Create a new chat session for nutrition consultation.
 
 **GET** `/chat/sessions`
 
-Retrieve all chat sessions for the authenticated user.
+Retrieve all chat sessions for the authenticated user. **All sessions have `purpose: "nutrition_assistant"`**.
 
 **Query Parameters:**
 
@@ -1904,6 +2106,7 @@ Retrieve all chat sessions for the authenticated user.
       "session_id": "123",
       "title": "Meal Planning Consultation",
       "context": "meal_planning",
+      "purpose": "nutrition_assistant",
       "created_at": "2025-09-30T10:00:00Z",
       "last_message_at": "2025-09-30T10:30:00Z",
       "message_count": 5,
@@ -1929,8 +2132,9 @@ Send a message to the AI chatbot and receive intelligent nutrition advice.
 ```json
 {
   "session_id": "123",
-  "message": "Tôi nên ăn gì để giảm cân nhanh mà vẫn đảm bảo sức khỏe?",
-  "context": {
+  "role": "user",
+  "content": "Tôi nên ăn gì để giảm cân nhanh mà vẫn đảm bảo sức khỏe?",
+  "meta": {
     "user_goal": "weight_loss",
     "current_weight": 70,
     "target_weight": 65,
@@ -2490,7 +2694,7 @@ Check API server health and AI service availability.
 
 ```bash
 # 1. Create profile
-curl -X POST http://localhost:3000/api/profile \
+curl -X POST http://localhost:3000/api/nutrition/profile \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -2501,8 +2705,8 @@ curl -X POST http://localhost:3000/api/profile \
     "goal": "lose"
   }'
 
-# 2. Create chat session
-curl -X POST http://localhost:3000/api/chat/sessions \
+# 2. Create chat session (automatically gets purpose: "nutrition_assistant")
+curl -X POST http://localhost:3000/api/nutrition/chat/sessions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -2511,7 +2715,7 @@ curl -X POST http://localhost:3000/api/chat/sessions \
   }'
 
 # 3. Generate meal plan
-curl -X POST http://localhost:3000/api/meal-plans \
+curl -X POST http://localhost:3000/api/nutrition/meal-plans \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -2524,20 +2728,21 @@ curl -X POST http://localhost:3000/api/meal-plans \
   }'
 
 # 4. Chat about meal plan
-curl -X POST http://localhost:3000/api/chat/messages \
+curl -X POST http://localhost:3000/api/nutrition/chat/messages \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "session_id": "SESSION_ID",
-    "message": "Meal plan này có phù hợp để giảm cân không?",
-    "context": {
+    "role": "user",
+    "content": "Meal plan này có phù hợp để giảm cân không?",
+    "meta": {
       "current_meal_plan_id": "MEAL_PLAN_ID",
       "user_goal": "weight_loss"
     }
   }'
 
 # 5. Get grocery list
-curl -X GET http://localhost:3000/api/meal-plans/MEAL_PLAN_ID/grocery-list \
+curl -X GET http://localhost:3000/api/nutrition/meal-plans/MEAL_PLAN_ID/grocery-list \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -2545,19 +2750,19 @@ curl -X GET http://localhost:3000/api/meal-plans/MEAL_PLAN_ID/grocery-list \
 
 ```bash
 # 1. Search foods
-curl -X GET "http://localhost:3000/api/foods?q=phở&limit=5" \
+curl -X GET "http://localhost:3000/api/nutrition/foods?q=phở&limit=5" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 2. Get food recommendations
-curl -X GET "http://localhost:3000/api/foods/recommend?goal=weight_loss" \
+curl -X GET "http://localhost:3000/api/nutrition/foods/recommend?goal=weight_loss" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 3. Analyze nutrient gaps
-curl -X GET http://localhost:3000/api/foods/nutrients/gaps \
+curl -X GET http://localhost:3000/api/nutrition/foods/nutrients/gaps \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 4. Log meal
-curl -X POST http://localhost:3000/api/meals \
+curl -X POST http://localhost:3000/api/nutrition/meals \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -2570,7 +2775,7 @@ curl -X POST http://localhost:3000/api/meals \
   }'
 
 # 5. Get today progress
-curl -X GET http://localhost:3000/api/meals/today \
+curl -X GET http://localhost:3000/api/nutrition/meals/today \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -2640,11 +2845,11 @@ GET    /api/meals/analytics            # Meal analytics
 GET    /api/meals/suggestions          # AI meal suggestions
 GET    /api/meals/patterns             # Eating pattern analysis
 
-// CHAT - AI-powered nutrition consultation
-POST   /api/chat/sessions              # Create chat session
-GET    /api/chat/sessions              # Get all sessions
-POST   /api/chat/messages              # Send message to AI
-GET    /api/chat/sessions/:id/messages # Get session messages
+// CHAT - AI-powered nutrition consultation (all sessions have purpose: "nutrition_assistant")
+POST   /api/nutrition/chat/sessions              # Create chat session with automatic purpose assignment
+GET    /api/nutrition/chat/sessions              # Get all sessions
+POST   /api/nutrition/chat/messages              # Send message to AI
+GET    /api/nutrition/chat/sessions/:id/messages # Get session messages
 
 // PROMPTS - Enhanced AI prompt management
 POST   /api/prompts                    # Create custom prompt
@@ -2673,7 +2878,7 @@ GET    /api/healthz                    # System health check
 - **meal_items**: Individual food items within meals
 - **user_food_logs**: Nutritional snapshots with calculated values
 - **user_food_summary**: Eating pattern analysis and statistics
-- **chat_sessions**: AI conversation sessions with context
+- **chat_sessions**: AI conversation sessions with context (all sessions have `purpose: "nutrition_assistant"`)
 - **chat_messages**: Turn-based messaging with role management
 - **prompts**: Custom AI prompts for nutrition advice
 - **Generated meal plans stored in meals table with type="meal_plan"**

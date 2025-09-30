@@ -12,6 +12,17 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL_ID = process.env.GEMINI_MODEL_ID || "gemini-2.5-flash";
 
 // Zod schemas
+const CreateSessionSchema = z.object({
+  title: z.string().optional(),
+  context: z.string().optional(),
+});
+
+const CreateMessageSchema = z.object({
+  session_id: z.string().or(z.number()),
+  message: z.string().max(4000),
+  context: z.any().optional(),
+});
+
 const ChatMsgBody = z.object({
   session_id: z.string().or(z.number()),
   role: z.enum(["user", "assistant", "system"]),
@@ -257,10 +268,56 @@ export class ChatbotController {
   static async createSession(req: Request, res: Response) {
     try {
       const user_id = (req as any).userId as bigint;
+      const parsed = CreateSessionSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid input",
+          details: parsed.error.flatten(),
+        });
+      }
+
+      const { title, context } = parsed.data;
+
       const s = await prisma.chat_sessions.create({
-        data: { user_id, started_at: new Date(), lang: "vi" },
+        data: {
+          user_id,
+          started_at: new Date(),
+          lang: "vi",
+          purpose: "nutrition_assistant", // ← Always set this for nutrition assistant
+        },
       });
-      res.json({ session_id: s.id?.toString() || "unknown" });
+
+      // Store title and context in first system message if provided
+      if (title || context) {
+        await prisma.chat_messages.create({
+          data: {
+            session_id: s.id,
+            role: "system",
+            turn_index: 0,
+            content: "Session initialized",
+            meta: {
+              title: title || "Nutrition Consultation",
+              context: context || "general",
+              session_type: "nutrition_assistant",
+            },
+          },
+        });
+      }
+
+      const serializedSession = serializeBigIntObject({
+        session_id: s.id?.toString() || "unknown",
+        title: title || "Nutrition Consultation",
+        context: context || "general",
+        purpose: "nutrition_assistant",
+        created_at: s.started_at,
+        status: "active",
+      });
+
+      res.status(201).json({
+        success: true,
+        data: serializedSession,
+      });
     } catch (error) {
       console.error("❌ createSession error:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -276,11 +333,46 @@ export class ChatbotController {
         where: { user_id },
         orderBy: { started_at: "desc" },
         take: limit,
+        include: {
+          _count: {
+            select: { chat_messages: true },
+          },
+          chat_messages: {
+            where: { role: "system", turn_index: 0 },
+            take: 1,
+          },
+        },
+      });
+
+      // Format sessions with proper structure
+      const formattedSessions = sessions.map((session: any) => {
+        const systemMsg = session.chat_messages?.[0];
+        const sessionMeta = systemMsg?.meta || {};
+
+        return {
+          session_id: session.id?.toString() || "unknown",
+          title: sessionMeta.title || "Nutrition Consultation",
+          context: sessionMeta.context || "general",
+          purpose: session.purpose || "nutrition_assistant",
+          created_at: session.started_at,
+          last_message_at: session.ended_at || session.started_at,
+          message_count: Math.max(0, (session._count?.chat_messages || 0) - 1), // Exclude system message
+          status: "active",
+        };
       });
 
       // Serialize BigInt fields
-      const serializedSessions = serializeBigIntObject(sessions);
-      res.json({ sessions: serializedSessions });
+      const serializedSessions = serializeBigIntObject(formattedSessions);
+
+      res.json({
+        success: true,
+        data: serializedSessions,
+        pagination: {
+          total: serializedSessions.length,
+          page: 1,
+          limit: limit,
+        },
+      });
     } catch (error) {
       console.error("❌ getSessions error:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -375,14 +467,20 @@ export class ChatbotController {
       // 7) Session timestamp tự động update qua started_at khi tạo
       // Table chat_sessions không có updated_at field
 
-      // 8) Trả về
-      res.json({
-        user_message: { id: userMsg.id?.toString(), turn_index: nextTurn },
-        assistant_message: {
-          id: assistantMsg.id?.toString(),
-          turn_index: nextTurn + 1,
-          content: llmText,
-        },
+      // 8) Return formatted response
+      const responseData = {
+        message_id: assistantMsg.id?.toString(),
+        session_id: session_id.toString(),
+        user_message: parsed.data.content,
+        ai_response: llmText,
+        ai_suggestions: [], // Can be enhanced later with specific suggestions
+        context_used: parsed.data.meta || {},
+        timestamp: new Date().toISOString(),
+      };
+
+      res.status(201).json({
+        success: true,
+        data: serializeBigIntObject(responseData),
       });
     } catch (error) {
       console.error("❌ createMessage error:", error);
@@ -395,23 +493,84 @@ export class ChatbotController {
     try {
       const user_id = (req as any).userId as bigint;
       const session_id = BigInt(req.params.id);
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit || 50)));
+      const offset = Math.max(0, Number(req.query.offset || 0));
 
       // bảo đảm quyền truy cập
       const session = await prisma.chat_sessions.findUnique({
         where: { id: session_id },
+        include: {
+          chat_messages: {
+            where: { role: "system", turn_index: 0 },
+            take: 1,
+          },
+        },
       });
       if (!session || session.user_id !== user_id) {
         return res.status(404).json({ error: "Session not found" });
       }
 
+      // Get session metadata from system message
+      const systemMsg = session.chat_messages?.[0];
+      const sessionMeta = systemMsg?.meta || {};
+
       const msgs = await prisma.chat_messages.findMany({
-        where: { session_id },
+        where: {
+          session_id,
+          role: { not: "system" }, // Exclude system messages
+        },
         orderBy: { turn_index: "asc" },
+        skip: offset,
+        take: limit,
       });
 
+      // Group messages by conversation pairs
+      const formattedMessages = [];
+      for (let i = 0; i < msgs.length; i += 2) {
+        const userMsg = msgs[i];
+        const aiMsg = msgs[i + 1];
+
+        if (userMsg && userMsg.role === "user") {
+          formattedMessages.push({
+            message_id: userMsg.id?.toString(),
+            user_message: userMsg.content,
+            ai_response: aiMsg?.content || "",
+            timestamp: userMsg.created_at || new Date(),
+            context_used: userMsg.meta || {},
+          });
+        }
+      }
+
+      // Get total count (excluding system messages)
+      const totalCount = await prisma.chat_messages.count({
+        where: {
+          session_id,
+          role: { not: "system" },
+        },
+      });
+
+      const responseData = {
+        session_info: {
+          session_id: session_id.toString(),
+          title: sessionMeta.title || "Nutrition Consultation",
+          context: sessionMeta.context || "general",
+          purpose: session.purpose || "nutrition_assistant",
+          created_at: session.started_at,
+        },
+        messages: formattedMessages,
+        pagination: {
+          total_messages: Math.ceil(totalCount / 2), // Pairs of messages
+          limit: limit,
+          offset: offset,
+        },
+      };
+
       // Serialize BigInt fields
-      const serializedMsgs = serializeBigIntObject(msgs);
-      res.json({ messages: serializedMsgs });
+      const serializedData = serializeBigIntObject(responseData);
+      res.json({
+        success: true,
+        data: serializedData,
+      });
     } catch (error) {
       console.error("❌ getSessionMessages error:", error);
       res.status(500).json({ error: "Internal server error" });
