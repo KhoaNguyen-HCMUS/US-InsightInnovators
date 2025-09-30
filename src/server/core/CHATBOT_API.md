@@ -1,14 +1,14 @@
-# 🤖 Nutrition Chatbot API Documentation
+# 🤖 Complete Nutrition & Chatbot API Documentation
 
 ## Overview
 
-**Comprehensive AI-Powered Nutrition Advisory System** - Complete backend API documentation providing intelligent nutrition tracking, personalized food recommendations, behavioral analysis, and context-aware chatbot functionality.
+**Comprehensive AI-Powered Nutrition Advisory System** - Complete backend API documentation providing intelligent nutrition tracking, personalized food recommendations, AI-powered meal planning, behavioral analysis, and context-aware chatbot functionality.
 
-**Base URL**: `http://localhost:5000/api`
+**Base URL**: `http://localhost:3000/api`
 
 **Authentication**: All endpoints require JWT authentication via `Authorization: Bearer <token>` header.
 
-**AI Engine**: Google Gemini 1.5 Flash with enhanced context awareness
+**AI Engine**: Google Gemini 1.5 Flash with enhanced context awareness for Vietnamese cuisine focus
 
 ---
 
@@ -18,13 +18,14 @@
 
 1. **Create Profile** → `POST /profile` (Basic health info)
 2. **Get Insights** → `GET /profile/insights` (AI health analysis)
-3. **Log Meals** → `POST /meals` (Track nutrition)
-4. **Get Recommendations** → `GET /foods/recommend` (Smart food suggestions)
-5. **Chat with AI** → `POST /chat/messages` (Intelligent nutrition advice)
+3. **Generate Meal Plan** → `POST /meal-plans` (AI-powered meal planning)
+4. **Chat with AI** → `POST /chat/messages` (Intelligent nutrition advice)
+5. **Log Meals** → `POST /meals` (Track nutrition)
+6. **Get Recommendations** → `GET /foods/recommend` (Smart food suggestions)
 
 ---
 
-## 📊 Profile Management
+## � Profile Management APIs
 
 ### Get User Profile
 
@@ -1838,9 +1839,739 @@ curl -X POST \
      }' \
      http://localhost:5000/api/nutrition/chat/messages
 
-# Get today's progress
-curl -H "Authorization: Bearer $TOKEN" \
-     http://localhost:5000/api/nutrition/meals/today
+```
+
+---
+
+## 🤖 Chatbot APIs
+
+### Create Chat Session
+
+**POST** `/chat/sessions`
+
+Create a new chat session for nutrition consultation.
+
+**Request Body:**
+
+```json
+{
+  "title": "Meal Planning Consultation",
+  "context": "meal_planning"
+}
+```
+
+**Context Options:**
+
+- `meal_planning` - Meal plan consultation
+- `weight_loss` - Weight management advice
+- `nutrition_analysis` - Food analysis
+- `recipe_suggestions` - Cooking guidance
+- `health_consultation` - Medical nutrition advice
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "session_id": "123",
+    "title": "Meal Planning Consultation",
+    "context": "meal_planning",
+    "created_at": "2025-09-30T10:00:00Z",
+    "status": "active"
+  }
+}
+```
+
+### Get All Chat Sessions
+
+**GET** `/chat/sessions`
+
+Retrieve all chat sessions for the authenticated user.
+
+**Query Parameters:**
+
+- `limit` (optional): Number of sessions (default: 10)
+- `status` (optional): Filter by status (active, archived)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "session_id": "123",
+      "title": "Meal Planning Consultation",
+      "context": "meal_planning",
+      "created_at": "2025-09-30T10:00:00Z",
+      "last_message_at": "2025-09-30T10:30:00Z",
+      "message_count": 5,
+      "status": "active"
+    }
+  ],
+  "pagination": {
+    "total": 15,
+    "page": 1,
+    "limit": 10
+  }
+}
+```
+
+### Send Chat Message
+
+**POST** `/chat/messages`
+
+Send a message to the AI chatbot and receive intelligent nutrition advice.
+
+**Request Body:**
+
+```json
+{
+  "session_id": "123",
+  "message": "Tôi nên ăn gì để giảm cân nhanh mà vẫn đảm bảo sức khỏe?",
+  "context": {
+    "user_goal": "weight_loss",
+    "current_weight": 70,
+    "target_weight": 65,
+    "timeline": "3_months",
+    "current_meal_plan_id": "9"
+  }
+}
+```
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message_id": "456",
+    "session_id": "123",
+    "user_message": "Tôi nên ăn gì để giảm cân nhanh mà vẫn đảm bảo sức khỏe?",
+    "ai_response": "Để giảm cân hiệu quả và an toàn, bạn nên:\n\n1. **Tạo deficit calories hợp lý**: Giảm 300-500 calories/ngày\n2. **Ăn nhiều protein**: Giúp duy trì cơ bắp (1.6-2.2g/kg thể trọng)\n3. **Chọn carbs phức hợp**: Gạo lứt, yến mạch, khoai lang\n4. **Ăn nhiều rau xanh**: Ít calories, nhiều chất xơ\n5. **Uống đủ nước**: 2-3 lít/ngày\n\n**Gợi ý thực đơn:**\n- Sáng: Cháo yến mạch + trứng\n- Trưa: Cơm gạo lứt + thịt nạc + rau\n- Tối: Salad + cá nướng\n\nBạn có muốn tôi tạo meal plan cụ thể không?",
+    "ai_suggestions": [
+      {
+        "type": "meal_plan",
+        "title": "Tạo meal plan giảm cân 7 ngày",
+        "action": "create_meal_plan",
+        "params": {
+          "duration": "weekly",
+          "goal": "weight_loss",
+          "target_calories": 1600
+        }
+      }
+    ],
+    "context_used": {
+      "user_goal": "weight_loss",
+      "current_weight": 70,
+      "target_weight": 65
+    },
+    "timestamp": "2025-09-30T10:15:00Z"
+  }
+}
+```
+
+### Get Session Messages
+
+**GET** `/chat/sessions/{id}/messages`
+
+Retrieve all messages from a specific chat session.
+
+**Query Parameters:**
+
+- `limit` (optional): Number of messages (default: 50)
+- `offset` (optional): Skip messages for pagination
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "session_info": {
+      "session_id": "123",
+      "title": "Meal Planning Consultation",
+      "context": "meal_planning",
+      "created_at": "2025-09-30T10:00:00Z"
+    },
+    "messages": [
+      {
+        "message_id": "456",
+        "user_message": "Tôi nên ăn gì để giảm cân?",
+        "ai_response": "Để giảm cân hiệu quả...",
+        "timestamp": "2025-09-30T10:15:00Z",
+        "context_used": {
+          "user_goal": "weight_loss"
+        }
+      }
+    ],
+    "pagination": {
+      "total_messages": 5,
+      "limit": 50,
+      "offset": 0
+    }
+  }
+}
+```
+
+---
+
+## 🍽️ AI-Powered Meal Planning APIs
+
+### Generate Meal Plan
+
+**POST** `/meal-plans`
+
+Generate AI-powered meal plan with Vietnamese cuisine focus.
+
+**Request Body:**
+
+```json
+{
+  "duration": "weekly",
+  "title": "Kế hoạch giảm cân tuần 1",
+  "preferences": {
+    "focus": "weight_loss",
+    "exclude_ingredients": ["nuts", "dairy"],
+    "preferred_cuisines": ["Vietnamese", "Asian"],
+    "cooking_time": "quick",
+    "meal_frequency": 3
+  }
+}
+```
+
+**Field Validations:**
+
+- `duration`: "weekly" or "monthly" (required)
+- `title`: String 1-255 characters (optional)
+- `preferences.focus`: "weight_loss", "muscle_gain", "maintenance"
+- `preferences.cooking_time`: "quick", "moderate", "elaborate"
+- `preferences.meal_frequency`: 2-6 meals per day
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "message": "Meal plan generated successfully",
+  "data": {
+    "id": "9",
+    "title": "Kế hoạch giảm cân tuần 1",
+    "duration": "weekly",
+    "status": "generated",
+    "total_days": 7,
+    "daily_calories": 1600,
+    "created_at": "2025-09-30T10:00:00Z",
+    "plan_data": {
+      "day_0": {
+        "breakfast": {
+          "name": "Phở Gà Ít Dầu",
+          "calories": 320,
+          "protein": 25,
+          "carbs": 35,
+          "fat": 8,
+          "ingredients": ["thịt gà", "bánh phở", "hành lá", "ngò"],
+          "cooking_time": "30 phút",
+          "cooking_instructions": "Luộc gà, trụng bánh phở, chan nước dùng...",
+          "cuisine": "vietnamese"
+        },
+        "lunch": {
+          "name": "Gỏi Cuốn Tôm",
+          "calories": 280,
+          "ingredients": ["tôm", "bánh tráng", "rau sống", "bún"],
+          "cooking_time": "15 phút"
+        },
+        "dinner": {
+          "name": "Canh Chua Cá",
+          "calories": 250,
+          "ingredients": ["cá", "dứa", "đậu bắp", "cà chua"],
+          "cooking_time": "25 phút"
+        }
+      }
+    },
+    "nutrition_targets": {
+      "calories": 1600,
+      "protein": 100,
+      "carbs": 180,
+      "fat": 53
+    },
+    "summary": {
+      "meals_count": 21,
+      "cuisine_focus": "Vietnamese",
+      "goal": "weight_loss"
+    }
+  },
+  "actions": {
+    "view_details": "/api/meal-plans/9",
+    "get_grocery_list": "/api/meal-plans/9/grocery-list"
+  }
+}
+```
+
+### Get All Meal Plans
+
+**GET** `/meal-plans`
+
+Retrieve all meal plans for the authenticated user.
+
+**Query Parameters:**
+
+- `limit` (optional): Number of plans (default: 10)
+
+**Response:**
+
+```json
+{
+  "meal_plans": [
+    {
+      "id": "9",
+      "title": "Weekly Meal Plan - 09/30/2025",
+      "duration": "weekly",
+      "created_at": "2025-09-30T10:00:00Z",
+      "nutrition_targets": {
+        "calories": 1600,
+        "protein": 100,
+        "carbs": 180,
+        "fat": 53
+      },
+      "plan_overview": {
+        "total_days": 7,
+        "meals_per_day": 3,
+        "total_meals": 21
+      }
+    }
+  ]
+}
+```
+
+### Get Meal Plan Details
+
+**GET** `/meal-plans/{id}`
+
+Get complete meal plan with all days and meals.
+
+**Response:**
+
+```json
+{
+  "meal_plan": {
+    "id": "9",
+    "title": "Weekly Meal Plan",
+    "duration": "weekly",
+    "created_at": "2025-09-30T10:00:00Z",
+    "plan_data": {
+      "day_0": {
+        "breakfast": {
+          "name": "Phở Gà",
+          "calories": 350,
+          "ingredients": ["gà", "bánh phở", "hành"],
+          "cooking_instructions": "..."
+        }
+      }
+    },
+    "nutrition_targets": {
+      "calories": 1600,
+      "protein": 100,
+      "carbs": 180,
+      "fat": 53
+    },
+    "grocery_list": {
+      "vegetables": [["hành lá", "100g"]],
+      "proteins": [["thịt gà", "500g"]],
+      "grains": [["bánh phở", "300g"]],
+      "other": [["nước mắm", "1 chai"]]
+    },
+    "start_date": "2025-09-30T10:00:00Z",
+    "end_date": "2025-10-07T10:00:00Z"
+  }
+}
+```
+
+### Update Meal Plan
+
+**PUT** `/meal-plans/{id}`
+
+Update meal plan title and preferences.
+
+**Request Body:**
+
+```json
+{
+  "title": "Updated Weekly Plan - Low Carb Focus",
+  "preferences": {
+    "focus": "weight_loss",
+    "preferred_cuisines": ["Vietnamese"],
+    "cooking_time": "quick",
+    "meal_frequency": 3
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Meal plan updated successfully"
+}
+```
+
+### Delete Meal Plan
+
+**DELETE** `/meal-plans/{id}`
+
+Delete a meal plan.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Meal plan deleted successfully"
+}
+```
+
+### Get Grocery List
+
+**GET** `/meal-plans/{id}/grocery-list`
+
+Generate shopping list from meal plan.
+
+**Response:**
+
+```json
+{
+  "grocery_list": {
+    "vegetables": [
+      [
+        "hành lá",
+        { "unit": "portion", "category": "vegetables", "quantity": 3 }
+      ],
+      [
+        "ngò gai",
+        { "unit": "portion", "category": "vegetables", "quantity": 2 }
+      ]
+    ],
+    "proteins": [
+      ["thịt gà", { "unit": "portion", "category": "proteins", "quantity": 2 }],
+      ["tôm", { "unit": "portion", "category": "proteins", "quantity": 1 }]
+    ],
+    "grains": [
+      ["gạo", { "unit": "portion", "category": "grains", "quantity": 5 }],
+      ["bánh phở", { "unit": "portion", "category": "grains", "quantity": 2 }]
+    ],
+    "other": [
+      ["nước mắm", { "unit": "portion", "category": "other", "quantity": 1 }],
+      ["đường", { "unit": "portion", "category": "other", "quantity": 1 }]
+    ],
+    "generated_at": "2025-09-30T10:05:00Z"
+  },
+  "meal_plan_title": "Weekly Meal Plan",
+  "generated_at": "2025-09-30T10:05:00Z"
+}
+```
+
+### Substitute Dish
+
+**POST** `/meal-plans/{id}/substitute`
+
+Replace a dish in meal plan with AI-generated alternative.
+
+**Request Body:**
+
+```json
+{
+  "meal_plan_id": "9",
+  "day_index": 0,
+  "meal_slot": "lunch",
+  "dish_to_replace": {
+    "name": "Bún Thịt Nướng",
+    "calories": 1000
+  },
+  "preferences": {
+    "cuisine": "Vietnamese",
+    "max_cook_time": 30,
+    "dietary_requirements": ["low-carb", "high-protein"]
+  },
+  "reason": "Muốn giảm carb từ 120g xuống dưới 50g"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Dish substituted successfully",
+  "data": {
+    "substitution": {
+      "timestamp": "2025-09-30T10:00:00Z",
+      "day_index": 0,
+      "meal_slot": "lunch",
+      "original_dish": {
+        "name": "Bún Thịt Nướng",
+        "calories": 1000
+      },
+      "substitute_dish": {
+        "name": "Thịt Nướng Cuốn Rau Củ",
+        "calories": 850,
+        "carbs": 35,
+        "protein": 75,
+        "fat": 35,
+        "cooking_time": "25 phút",
+        "ingredients": ["200g thịt nạc vai nướng", "rau xà lách", "dưa chuột"],
+        "cooking_instructions": "Thịt ướp gia vị nướng, cuốn với rau củ tươi",
+        "why_substitute": "Món mới giảm 85g carb so với bún thịt nướng, tăng protein"
+      },
+      "reason": "Muốn giảm carb từ 120g xuống dưới 50g"
+    },
+    "nutrition_comparison": {
+      "original": {
+        "name": "Bún Thịt Nướng",
+        "calories": 1000
+      },
+      "substitute": {
+        "name": "Thịt Nướng Cuốn Rau Củ",
+        "calories": 850
+      },
+      "calorie_difference": -150
+    }
+  }
+}
+```
+
+---
+
+## 📝 Prompt Management APIs
+
+### Create Custom Prompt
+
+**POST** `/prompts`
+
+Create custom AI prompts for nutrition advice.
+
+**Request Body:**
+
+```json
+{
+  "purpose": "meal_plan_generation",
+  "prompt_text": "Tạo meal plan giảm cân cho người Việt Nam...",
+  "context_variables": {
+    "user_goal": "weight_loss",
+    "cuisine": "vietnamese",
+    "duration": "weekly"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "prompt_id": "789",
+    "purpose": "meal_plan_generation",
+    "prompt_text": "Tạo meal plan giảm cân cho người Việt Nam...",
+    "created_at": "2025-09-30T10:00:00Z"
+  }
+}
+```
+
+### Get User Prompts
+
+**GET** `/prompts`
+
+Get all custom prompts for the authenticated user.
+
+**Query Parameters:**
+
+- `purpose` (optional): Filter by purpose
+- `limit` (optional): Number of prompts (default: 10)
+
+**Response:**
+
+```json
+{
+  "prompts": [
+    {
+      "prompt_id": "789",
+      "purpose": "meal_plan_generation",
+      "prompt_text": "Tạo meal plan giảm cân...",
+      "created_at": "2025-09-30T10:00:00Z",
+      "usage_count": 5
+    }
+  ]
+}
+```
+
+### Optimize Prompt
+
+**POST** `/prompts/optimize`
+
+Get AI suggestions to improve prompt effectiveness.
+
+**Request Body:**
+
+```json
+{
+  "prompt_text": "Tạo meal plan cho tôi",
+  "purpose": "meal_plan_generation"
+}
+```
+
+**Response:**
+
+```json
+{
+  "optimized_prompt": "Tạo meal plan 7 ngày cho người Việt Nam với mục tiêu giảm cân, bao gồm các món ăn truyền thống ít calories...",
+  "improvements": [
+    "Thêm thông tin mục tiêu cụ thể",
+    "Chỉ định thời gian meal plan",
+    "Đề cập ẩm thực Việt Nam"
+  ],
+  "effectiveness_score": 85
+}
+```
+
+### Get Prompt Templates
+
+**GET** `/prompts/templates`
+
+Get pre-built prompt templates for common nutrition tasks.
+
+**Response:**
+
+```json
+{
+  "templates": [
+    {
+      "template_id": "weight_loss_plan",
+      "title": "Weight Loss Meal Plan",
+      "description": "Template for creating weight loss meal plans",
+      "prompt_template": "Tạo meal plan giảm cân {duration} với mục tiêu {target_calories} calories/ngày...",
+      "variables": ["duration", "target_calories", "cuisine_preference"]
+    }
+  ]
+}
+```
+
+---
+
+## 🏥 Health Check API
+
+### Health Check
+
+**GET** `/healthz`
+
+Check API server health and AI service availability.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-09-30T10:00:00Z",
+  "services": {
+    "database": "connected",
+    "gemini_ai": "available",
+    "authentication": "active"
+  },
+  "version": "1.0.0"
+}
+```
+
+---
+
+## 🧪 Complete Testing Examples
+
+### Test Sequence 1: Complete Meal Planning Workflow
+
+```bash
+# 1. Create profile
+curl -X POST http://localhost:3000/api/profile \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "height_cm": 170,
+    "weight_kg": 70,
+    "sex": "male",
+    "activity_level": "moderate",
+    "goal": "lose"
+  }'
+
+# 2. Create chat session
+curl -X POST http://localhost:3000/api/chat/sessions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Meal Planning Consultation",
+    "context": "meal_planning"
+  }'
+
+# 3. Generate meal plan
+curl -X POST http://localhost:3000/api/meal-plans \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "duration": "weekly",
+    "preferences": {
+      "focus": "weight_loss",
+      "preferred_cuisines": ["Vietnamese"],
+      "cooking_time": "quick"
+    }
+  }'
+
+# 4. Chat about meal plan
+curl -X POST http://localhost:3000/api/chat/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "session_id": "SESSION_ID",
+    "message": "Meal plan này có phù hợp để giảm cân không?",
+    "context": {
+      "current_meal_plan_id": "MEAL_PLAN_ID",
+      "user_goal": "weight_loss"
+    }
+  }'
+
+# 5. Get grocery list
+curl -X GET http://localhost:3000/api/meal-plans/MEAL_PLAN_ID/grocery-list \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Test Sequence 2: Food Analysis & Recommendations
+
+```bash
+# 1. Search foods
+curl -X GET "http://localhost:3000/api/foods?q=phở&limit=5" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 2. Get food recommendations
+curl -X GET "http://localhost:3000/api/foods/recommend?goal=weight_loss" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 3. Analyze nutrient gaps
+curl -X GET http://localhost:3000/api/foods/nutrients/gaps \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 4. Log meal
+curl -X POST http://localhost:3000/api/meals \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "date_time": "2025-09-30T12:00:00Z",
+    "type": "lunch",
+    "meal_slot": "afternoon",
+    "items": [
+      {"food_id": "1", "qty_grams": 200}
+    ]
+  }'
+
+# 5. Get today progress
+curl -X GET http://localhost:3000/api/meals/today \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ---
@@ -1861,7 +2592,7 @@ GEMINI_API_KEY="your-gemini-api-key"
 GEMINI_MODEL_ID="gemini-1.5-flash"
 
 # Server
-PORT=5000
+PORT=3000
 NODE_ENV=development
 ```
 
@@ -1870,27 +2601,112 @@ NODE_ENV=development
 ```
 src/
 ├── controllers/          # Business logic
-│   ├── profileController.ts    # Profile CRUD + BMI/BMR/TDEE calculations
-│   ├── foodController.ts       # Food search with pagination
-│   ├── mealController.ts       # Complex meal logging with nutrition tracking
-│   ├── chatbotController.ts    # AI chat with context awareness
-│   └── promptController.ts     # Custom prompt templates
+│   ├── profileController.ts     # Profile CRUD + BMI/BMR/TDEE calculations
+│   ├── foodController.ts        # Food search with smart recommendations
+│   ├── mealController.ts        # Meal logging with nutrition tracking
+│   ├── chatbotController.ts     # AI chat with context awareness
+│   ├── promptController.ts      # Custom prompt templates & optimization
+│   └── MealPlanController.ts    # AI-powered meal planning with Vietnamese focus
 ├── routes/
-│   └── nutrition.ts           # API routes with authentication
+│   └── nutrition.ts            # Complete API routes with authentication
 ├── middleware/
-│   └── auth.ts               # JWT authentication middleware
-└── index.ts                  # Server entry point
+│   └── auth.ts                 # JWT authentication middleware
+├── utils/
+│   └── serialization.ts        # BigInt serialization utilities
+└── index.ts                    # Server entry point
 ```
 
-### Database Schema
+### Complete API Routes List
+
+```typescript
+// PROFILE - Enhanced with AI support
+GET    /api/profile                    # Get user profile
+POST   /api/profile                    # Create profile
+PUT    /api/profile                    # Update profile
+GET    /api/profile/insights           # AI health insights
+GET    /api/profile/constraints        # Health constraints
+
+// FOODS - Smart recommendations
+GET    /api/foods                      # Search foods
+GET    /api/foods/:id                  # Get food details
+GET    /api/foods/recommend            # AI food recommendations
+GET    /api/foods/:id/alternatives     # Food alternatives
+GET    /api/foods/nutrients/gaps       # Nutrient gap analysis
+
+// MEALS - Advanced analytics
+POST   /api/meals                      # Create meal entry
+GET    /api/meals/today                # Today's nutrition progress
+GET    /api/meals/analytics            # Meal analytics
+GET    /api/meals/suggestions          # AI meal suggestions
+GET    /api/meals/patterns             # Eating pattern analysis
+
+// CHAT - AI-powered nutrition consultation
+POST   /api/chat/sessions              # Create chat session
+GET    /api/chat/sessions              # Get all sessions
+POST   /api/chat/messages              # Send message to AI
+GET    /api/chat/sessions/:id/messages # Get session messages
+
+// PROMPTS - Enhanced AI prompt management
+POST   /api/prompts                    # Create custom prompt
+GET    /api/prompts                    # Get user prompts
+POST   /api/prompts/optimize           # Optimize prompt effectiveness
+GET    /api/prompts/templates          # Get prompt templates
+
+// MEAL PLANNING - AI-powered meal planning
+POST   /api/meal-plans                 # Generate meal plan
+GET    /api/meal-plans                 # Get all meal plans
+GET    /api/meal-plans/:id             # Get meal plan details
+PUT    /api/meal-plans/:id             # Update meal plan
+DELETE /api/meal-plans/:id             # Delete meal plan
+GET    /api/meal-plans/:id/grocery-list # Generate grocery list
+POST   /api/meal-plans/:id/substitute  # Substitute dish with AI
+
+// HEALTH CHECK
+GET    /api/healthz                    # System health check
+```
+
+### Database Schema Overview
 
 - **profiles**: User health data with JSON fields for conditions/allergies/preferences
 - **foods**: Comprehensive nutrition database (20+ nutrients per 100g)
-- **meals**: Meal entries with timestamps and metadata
+- **meals**: Meal entries with timestamps and AI-generated metadata
 - **meal_items**: Individual food items within meals
 - **user_food_logs**: Nutritional snapshots with calculated values
 - **user_food_summary**: Eating pattern analysis and statistics
-- **chat_sessions**: AI conversation sessions
+- **chat_sessions**: AI conversation sessions with context
 - **chat_messages**: Turn-based messaging with role management
+- **prompts**: Custom AI prompts for nutrition advice
+- **Generated meal plans stored in meals table with type="meal_plan"**
 
-This documentation covers all nutrition API endpoints with complete request/response specifications for backend integration and testing.
+### Key Features
+
+#### 🤖 **AI-Powered Capabilities:**
+
+- **Gemini 1.5 Flash Integration** for Vietnamese cuisine focus
+- **Context-aware chatbot** with nutrition expertise
+- **Intelligent meal planning** with cultural preferences
+- **Smart food substitutions** based on dietary requirements
+- **Personalized recommendations** using user profile data
+
+#### 🍽️ **Vietnamese Cuisine Focus:**
+
+- Traditional Vietnamese dishes in meal plans
+- Local ingredients and cooking methods
+- Cultural eating patterns and preferences
+- Authentic recipes with nutrition calculations
+
+#### 📊 **Advanced Analytics:**
+
+- BMI/BMR/TDEE calculations
+- Nutrient gap analysis
+- Eating pattern recognition
+- Progress tracking and insights
+
+#### 🔧 **Performance Optimizations:**
+
+- In-memory caching for meal plans (30-minute TTL)
+- Parallel database operations
+- Background grocery list generation
+- Efficient BigInt serialization
+
+This comprehensive API documentation covers all nutrition endpoints with complete request/response specifications, AI capabilities, and Vietnamese cuisine integration for backend development and testing.
