@@ -7,7 +7,7 @@ import type {
   MeasurementUnits 
 } from '../../types/health';
 import { convertWeight, convertHeight } from '../../utils/healthCalculations';
-import { FaUser, FaWeight, FaRuler, FaVenusMars, FaRunning, FaHeart, FaHeartbeat, FaAllergies, FaPills } from 'react-icons/fa';
+import { FaUser, FaWeight, FaRuler, FaVenusMars, FaRunning, FaHeart, FaHeartbeat, FaAllergies, FaUtensils } from 'react-icons/fa';
 import { activityLevels } from '../../constant/health';
 
 interface HealthFormProps {
@@ -276,53 +276,59 @@ export default function HealthForm({ profile, isEditing, consentGranted, onChang
           <h3 className="text-lg font-medium text-text-header">Medical Information</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Health Conditions */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-text-body mb-3">
-              <FaHeartbeat className="mr-2 text-error" />
-              Health Conditions
-            </label>
-            <textarea
-              value={formData.medicalInfo?.conditions || ''}
-              onChange={(e) => handleInputChange('medicalInfo.conditions', e.target.value)}
-              disabled={!isEditing}
-              className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors resize-none"
-              placeholder="Enter any health conditions (e.g., Diabetes, Hypertension, etc.)"
-              rows={4}
-            />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            {/* Health Conditions */}
+            <div>
+              <label className="flex items-center text-sm font-medium text-text-body mb-3">
+                <FaHeartbeat className="mr-2 text-error" />
+                Health Conditions
+              </label>
+              <textarea
+                value={formData.medicalInfo?.conditions || ''}
+                onChange={(e) => handleInputChange('medicalInfo.conditions', e.target.value)}
+                disabled={!isEditing}
+                className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors resize-none"
+                placeholder="Enter any health conditions (e.g., Diabetes, Hypertension, etc.)"
+                rows={4}
+              />
+            </div>
 
-          {/* Allergies */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-text-body mb-3">
-              <FaAllergies className="mr-2 text-warning" />
-              Allergies
-            </label>
-            <textarea
-              value={formData.medicalInfo?.allergies || ''}
-              onChange={(e) => handleInputChange('medicalInfo.allergies', e.target.value)}
-              disabled={!isEditing}
-              className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors resize-none"
-              placeholder="Enter any allergies (e.g., Nuts, Dairy, Gluten, etc.)"
-              rows={4}
-            />
+            {/* Allergies */}
+            <div>
+              <label className="flex items-center text-sm font-medium text-text-body mb-3">
+                <FaAllergies className="mr-2 text-warning" />
+                Allergies
+              </label>
+              <textarea
+                value={formData.medicalInfo?.allergies || ''}
+                onChange={(e) => handleInputChange('medicalInfo.allergies', e.target.value)}
+                disabled={!isEditing}
+                className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors resize-none"
+                placeholder="Enter any allergies (e.g., Nuts, Dairy, Gluten, etc.)"
+                rows={4}
+              />
+            </div>
           </div>
-
-          {/* Medications */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-text-body mb-3">
-              <FaPills className="mr-2 text-info" />
-              Medications
-            </label>
-            <textarea
-              value={formData.medicalInfo?.medications || ''}
-              onChange={(e) => handleInputChange('medicalInfo.medications', e.target.value)}
-              disabled={!isEditing}
-              className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors resize-none"
-              placeholder="Enter current medications (e.g., Metformin, Lisinopril, etc.)"
-              rows={4}
-            />
+          
+          <div className="space-y-4">
+            
+            
+            {/* Dietary Preferences */}
+            <div>
+              <label className="flex items-center text-sm font-medium text-text-body mb-3">
+                <FaUtensils className="mr-2 text-success" />
+                Dietary Preferences
+              </label>
+              <textarea
+                value={formData.medicalInfo?.preferences || ''}
+                onChange={(e) => handleInputChange('medicalInfo.preferences', e.target.value)}
+                disabled={!isEditing}
+                className="w-full px-4 py-3 border border-border-light rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-bg text-text-body disabled:bg-bg-muted transition-colors resize-none"
+                placeholder="Enter dietary preferences (e.g., Vegetarian, Low-sodium, etc.)"
+                rows={4}
+              />
+            </div>
           </div>
         </div>
       </div>

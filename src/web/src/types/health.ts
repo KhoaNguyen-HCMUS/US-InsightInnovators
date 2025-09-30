@@ -31,7 +31,8 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export interface MedicalInfo {
   conditions: string; 
   allergies: string; 
-  medications: string; 
+  medications: string;
+  preferences?: string; 
 }
 
 export interface MeasurementUnits {

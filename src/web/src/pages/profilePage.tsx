@@ -68,6 +68,35 @@ export default function ProfilePage() {
           throw new Error('No profile data in API response');
         }
         
+        // Parse JSON arrays from API or use empty arrays if not available
+        let conditionsArray: string[] = [];
+        let allergiesArray: string[] = [];
+        let preferencesArray: string[] = [];
+        
+        try {
+          if (apiProfile.conditions_json) {
+            conditionsArray = JSON.parse(apiProfile.conditions_json);
+          }
+        } catch (e) {
+          console.error('Error parsing conditions_json:', e);
+        }
+        
+        try {
+          if (apiProfile.allergies_json) {
+            allergiesArray = JSON.parse(apiProfile.allergies_json);
+          }
+        } catch (e) {
+          console.error('Error parsing allergies_json:', e);
+        }
+        
+        try {
+          if (apiProfile.preferences_json) {
+            preferencesArray = JSON.parse(apiProfile.preferences_json);
+          }
+        } catch (e) {
+          console.error('Error parsing preferences_json:', e);
+        }
+        
         const newProfile: Partial<HealthProfile> = {
           personalInfo: {
             age: 0,
@@ -81,16 +110,17 @@ export default function ProfilePage() {
           },
           activityLevel: (apiProfile.activity_level || 'moderate') as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active',
           medicalInfo: {
-            conditions: '',
-            allergies: '',
-            medications: ''
+            conditions: conditionsArray.join(', '),
+            allergies: allergiesArray.join(', '),
+            medications: '',
+            preferences: preferencesArray.join(', ')
           },
           units: {
             weight: 'kg',
             height: 'cm',
             temperature: 'celsius'
           },
-          consent: true,
+          consent: apiProfile.consent_accepted_at !== null,
           userId: user.id,
           updatedAt: apiProfile.updated_at ? new Date(apiProfile.updated_at) : new Date()
         };
@@ -168,13 +198,21 @@ export default function ProfilePage() {
     setIsSaving(true);
     
     try {
+      // Prepare medical information for API
+      const conditions = profile.medicalInfo?.conditions?.split(',').map(item => item.trim()) || [];
+      const allergies = profile.medicalInfo?.allergies?.split(',').map(item => item.trim()) || [];
+      const preferences = profile.medicalInfo?.preferences?.split(',').map(item => item.trim()) || [];
+
       // Format the data for API (to match the API response format)
       const apiProfileData: ProfileUpdateRequest = {
         height_cm: String(profile.personalInfo?.height || 0),
         weight_kg: String(profile.personalInfo?.weight || 0),
         sex: profile.personalInfo?.gender || 'male',
         activity_level: profile.activityLevel || 'moderate',
-        goal: profile.goals?.primary || 'maintain'
+        goal: profile.goals?.primary || 'maintain',
+        conditions_json: JSON.stringify(conditions),
+        allergies_json: JSON.stringify(allergies),
+        preferences_json: JSON.stringify(preferences)
       };
       
       // Make the API call to update the profile
@@ -188,6 +226,35 @@ export default function ProfilePage() {
       const user = response.data.user || { id: 'default_user', email: '', created_at: new Date().toISOString() };
       const apiProfile = response.data.profile;
       
+      // Parse medical information from API response
+      let conditionsArray: string[] = [];
+      let allergiesArray: string[] = [];
+      let preferencesArray: string[] = [];
+      
+      try {
+        if (apiProfile.conditions_json) {
+          conditionsArray = JSON.parse(apiProfile.conditions_json);
+        }
+      } catch (e) {
+        console.error('Error parsing conditions_json:', e);
+      }
+      
+      try {
+        if (apiProfile.allergies_json) {
+          allergiesArray = JSON.parse(apiProfile.allergies_json);
+        }
+      } catch (e) {
+        console.error('Error parsing allergies_json:', e);
+      }
+      
+      try {
+        if (apiProfile.preferences_json) {
+          preferencesArray = JSON.parse(apiProfile.preferences_json);
+        }
+      } catch (e) {
+        console.error('Error parsing preferences_json:', e);
+      }
+
       // Convert the response back to our frontend format with safe access and type conversion
       const savedProfile = {
         ...profile,
@@ -202,8 +269,15 @@ export default function ProfilePage() {
           primary: (apiProfile.goal || profile.goals?.primary || 'maintain') as 'lose' | 'maintain' | 'gain'
         },
         activityLevel: (apiProfile.activity_level || profile.activityLevel || 'moderate') as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active',
+        medicalInfo: {
+          ...profile.medicalInfo,
+          conditions: conditionsArray.join(', '),
+          allergies: allergiesArray.join(', '),
+          preferences: preferencesArray.join(', ')
+        },
         userId: user.id || 'default_user',
         updatedAt: apiProfile.updated_at ? new Date(apiProfile.updated_at) : new Date(),
+        consent: apiProfile.consent_accepted_at !== null
       } as HealthProfile;
 
       // Get health indices directly from API response, not calculating them

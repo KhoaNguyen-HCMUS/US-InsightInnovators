@@ -18,6 +18,10 @@ export interface ProfileResponse {
       bmr: string;
       tdee: string;
       updated_at: string;
+      conditions_json?: string;
+      allergies_json?: string;
+      preferences_json?: string;
+      consent_accepted_at?: string | null;
     };
   }
 }
@@ -28,6 +32,9 @@ export interface ProfileUpdateRequest {
   sex: string;
   activity_level: string;
   goal: string;
+  conditions_json?: string;
+  allergies_json?: string;
+  preferences_json?: string;
 }
 
 // Define a more flexible API response type for handling different response formats
@@ -49,6 +56,10 @@ interface FlexibleProfileResponse {
       bmr?: string;
       tdee?: string;
       updated_at?: string;
+      conditions_json?: string;
+      allergies_json?: string;
+      preferences_json?: string;
+      consent_accepted_at?: string | null;
     };
     // For direct properties in data (flat structure)
     height_cm?: string;
@@ -60,6 +71,10 @@ interface FlexibleProfileResponse {
     bmr?: string;
     tdee?: string;
     updated_at?: string;
+    conditions_json?: string;
+    allergies_json?: string;
+    preferences_json?: string;
+    consent_accepted_at?: string | null;
   };
 }
 
@@ -101,7 +116,11 @@ export const getProfile = async (): Promise<ProfileResponse> => {
               bmi: response.data.bmi || '0',
               bmr: response.data.bmr || '0',
               tdee: response.data.tdee || '0',
-              updated_at: response.data.updated_at || new Date().toISOString()
+              updated_at: response.data.updated_at || new Date().toISOString(),
+              conditions_json: response.data.conditions_json || '[]',
+              allergies_json: response.data.allergies_json || '[]',
+              preferences_json: response.data.preferences_json || '[]',
+              consent_accepted_at: response.data.consent_accepted_at
             }
           }
         };
@@ -130,7 +149,11 @@ export const getProfile = async (): Promise<ProfileResponse> => {
               bmi: profile.bmi || '0',
               bmr: profile.bmr || '0',
               tdee: profile.tdee || '0',
-              updated_at: profile.updated_at || new Date().toISOString()
+              updated_at: profile.updated_at || new Date().toISOString(),
+              conditions_json: profile.conditions_json || '[]',
+              allergies_json: profile.allergies_json || '[]',
+              preferences_json: profile.preferences_json || '[]',
+              consent_accepted_at: profile.consent_accepted_at
             }
           }
         };
@@ -158,7 +181,11 @@ export const getProfile = async (): Promise<ProfileResponse> => {
           bmi: '22.49',
           bmr: '1577.5',
           tdee: '2445',
-          updated_at: '2025-09-29T17:02:59.5132'
+          updated_at: '2025-09-29T17:02:59.5132',
+          conditions_json: '["high_blood_pressure"]',
+          allergies_json: '["nuts", "dairy"]',
+          preferences_json: '["vegetarian", "low_sodium"]',
+          consent_accepted_at: '2025-09-29T09:10:33.4412'
         }
       }
     };
@@ -189,7 +216,11 @@ export const updateProfile = async (profileData: ProfileUpdateRequest): Promise<
           bmi: '22.49', // Calculated value in a real scenario
           bmr: '1577.5', // Calculated value in a real scenario
           tdee: '2445', // Calculated value in a real scenario
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          conditions_json: profileData.conditions_json || '[]',
+          allergies_json: profileData.allergies_json || '[]',
+          preferences_json: profileData.preferences_json || '[]',
+          consent_accepted_at: new Date().toISOString()
         }
       }
     };
