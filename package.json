@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "dev:ml": "cd src/server/ml && run-dev.bat",
+    "setup:ml": "cd src/server/ml && setup.bat"
+  }
+}
