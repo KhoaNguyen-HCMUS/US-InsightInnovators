@@ -11,6 +11,7 @@ import RegisterPage from './pages/registerPage'
 import ProfilePage from './pages/profilePage'
 import MealPlanPage from './pages/mealPlanPage'
 import DashboardPage from './pages/dashboardPage'
+import FoodRecognitionPage from './pages/foodRecognitionPage';
 
 function App() {
 
@@ -25,6 +26,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/meal-plans" element={<MealPlanPage />} />
+          <Route path="/food-recognition" element={<FoodRecognitionPage />} />
         </Routes>
         <ToastContainer
                   position='top-right'

@@ -9,6 +9,7 @@ const navItems = [
   { path: '/profile', label: 'Profile' },
   { path: '/meal-plans', label: 'Meal Plans' },
   { path: '/health-assistant', label: 'Health Assistant' },
+  { path: '/food-recognition', label: 'Food Recognition' }
 ]
 
 export default function Navbar() {
