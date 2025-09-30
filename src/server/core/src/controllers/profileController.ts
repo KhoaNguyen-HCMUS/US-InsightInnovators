@@ -66,9 +66,12 @@ function calcBMR(
 
 // Schemas
 const ProfileInput = z.object({
-  height_cm: z.number().min(100).max(250),
-  weight_kg: z.number().min(25).max(300),
-  sex: z.enum(["male", "female"]),
+  height: z.number().min(100).max(250).optional(),
+  height_cm: z.number().min(100).max(250).optional(),
+  weight: z.number().min(25).max(300).optional(),
+  weight_kg: z.number().min(25).max(300).optional(),
+  gender: z.enum(["male", "female"]).optional(),
+  sex: z.enum(["male", "female"]).optional(),
   activity_level: z.enum([
     "sedentary",
     "light",
@@ -79,7 +82,7 @@ const ProfileInput = z.object({
   goal: z.enum(["lose", "maintain", "gain"]),
   conditions_json: z.any().optional(),
   allergies_json: z.any().optional(),
-  preferences_json: z.any().optional(),
+  preferences_json: z.any().optional(), // Accept both object and array
 });
 
 const PutProfileBody = ProfileInput.extend({
@@ -88,9 +91,12 @@ const PutProfileBody = ProfileInput.extend({
 
 const PostProfileBody = z.object({
   age: z.number().min(10).max(100),
-  height_cm: z.number().min(100).max(250),
-  weight_kg: z.number().min(30).max(300),
-  sex: z.enum(["male", "female"]),
+  height: z.number().min(100).max(250).optional(),
+  height_cm: z.number().min(100).max(250).optional(),
+  weight: z.number().min(30).max(300).optional(),
+  weight_kg: z.number().min(30).max(300).optional(),
+  gender: z.enum(["male", "female"]).optional(),
+  sex: z.enum(["male", "female"]).optional(),
   activity_level: z.enum([
     "sedentary",
     "light",
@@ -99,9 +105,9 @@ const PostProfileBody = z.object({
     "very_active",
   ]),
   goal: z.enum(["lose", "maintain", "gain"]),
-  conditions_json: z.array(z.string()).optional(),
-  allergies_json: z.array(z.string()).optional(),
-  preferences_json: z.array(z.string()).optional(),
+  conditions_json: z.any().optional(), // Accept any format
+  allergies_json: z.any().optional(), // Accept any format
+  preferences_json: z.any().optional(), // Accept any format
 });
 
 export class ProfileController {
@@ -145,7 +151,21 @@ export class ProfileController {
       const p = PostProfileBody.safeParse(req.body);
       if (!p.success) return res.status(400).json({ error: p.error.flatten() });
 
-      const { height_cm, weight_kg, sex, activity_level, goal, age } = p.data;
+      // Normalize field names (support both formats)
+      const height_cm = p.data.height_cm || p.data.height;
+      const weight_kg = p.data.weight_kg || p.data.weight;
+      const sex = p.data.sex || p.data.gender;
+
+      // Validate required fields
+      if (!height_cm || !weight_kg || !sex) {
+        return res.status(400).json({
+          error: "Missing required fields",
+          message:
+            "height (or height_cm), weight (or weight_kg), and gender (or sex) are required",
+        });
+      }
+
+      const { activity_level, goal, age } = p.data;
       const bmi = calcBMI(height_cm, weight_kg);
       const bmr = calcBMR(sex, age, height_cm, weight_kg);
       const tdee = Math.round(bmr * palFromActivity(activity_level));
@@ -202,7 +222,21 @@ export class ProfileController {
       const p = PutProfileBody.safeParse(req.body);
       if (!p.success) return res.status(400).json({ error: p.error.flatten() });
 
-      const { height_cm, weight_kg, sex, activity_level, goal } = p.data;
+      // Normalize field names (support both formats)
+      const height_cm = p.data.height_cm || p.data.height;
+      const weight_kg = p.data.weight_kg || p.data.weight;
+      const sex = p.data.sex || p.data.gender;
+
+      // Validate required fields
+      if (!height_cm || !weight_kg || !sex) {
+        return res.status(400).json({
+          error: "Missing required fields",
+          message:
+            "height (or height_cm), weight (or weight_kg), and gender (or sex) are required",
+        });
+      }
+
+      const { activity_level, goal } = p.data;
       const bmi = calcBMI(height_cm, weight_kg);
       const bmr = calcBMR(sex, p.data.age, height_cm, weight_kg);
       const tdee = Math.round(bmr * palFromActivity(activity_level));
