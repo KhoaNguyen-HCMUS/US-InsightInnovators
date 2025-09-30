@@ -18,6 +18,8 @@ export default function MealPlanPage() {
     mealId: string;
     mealType: string;
     originalMeal: string;
+    dayIndex?: number;
+    mealPlanId: string;
   } | null>(null);
 
   const [healthProfile] = useState<Partial<HealthProfile>>({
@@ -52,11 +54,31 @@ export default function MealPlanPage() {
   };
 
   const handleMealSubstitute = (mealId: string, mealType: string) => {
-    const originalMeal = mealPlan?.dailyPlans
-      .flatMap(day => day.meals)
-      .find(meal => meal.id === mealId)?.name || 'Unknown Meal';
+    // Find the day index and original meal
+    let dayIndex = -1;
+    let originalMeal = 'Unknown Meal';
+
+    console.log('Handling meal substitution for:', { mealId, mealType });
     
-    setSubstitutionData({ mealId, mealType, originalMeal });
+    if (mealPlan) {
+      for (let i = 0; i < mealPlan.dailyPlans.length; i++) {
+        const foundMeal = mealPlan.dailyPlans[i].meals.find(meal => meal.id === mealId);
+        if (foundMeal) {
+          dayIndex = i;
+          originalMeal = foundMeal.name;
+          break;
+        }
+      }
+    }
+    
+    // We need to include the meal plan ID in the substitution data
+    setSubstitutionData({ 
+      mealId, 
+      mealType, 
+      originalMeal, 
+      dayIndex,
+      mealPlanId: mealPlan?.id || '' // Add the meal plan ID
+    });
     setIsSubstituting(true);
   };
 
@@ -91,7 +113,9 @@ export default function MealPlanPage() {
               { name: alternative.name, amount: alternative.amount, unit: alternative.unit, category: 'protein' as const, calories: 0, macros: { protein: 0, carbohydrates: 0, fat: 0, fiber: 0, sugar: 0 }, allergens: [] }
             ],
             instructions: `Prepare ${alternative.name} according to standard recipe. ${alternative.reason}`,
-            substitutions: [`Substituted for ${substitution.original}: ${alternative.reason}`]
+            substitutions: meal.substitutions 
+              ? [...meal.substitutions, `Substituted for ${substitution.original}: ${alternative.reason}`]
+              : [`Substituted for ${substitution.original}: ${alternative.reason}`]
           };
         }
         return meal;
@@ -191,8 +215,10 @@ export default function MealPlanPage() {
         {isSubstituting && substitutionData && (
           <MealSubstitution
             mealId={substitutionData.mealId}
+            mealPlanId={substitutionData.mealPlanId}
             mealType={substitutionData.mealType}
             originalMeal={substitutionData.originalMeal}
+            dayIndex={substitutionData.dayIndex || 0}
             onSubstitute={handleSubstitution}
             onClose={() => {
               setIsSubstituting(false);
