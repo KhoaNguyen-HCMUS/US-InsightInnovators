@@ -93,21 +93,21 @@ Hãy mô tả các triệu chứng bạn đang gặp phải nhé!`,
         throw new Error('Chat session not found or access denied');
       }
 
-      // Get last 10 messages for context
+      // Get last 10 messages for AI context (KEEP THIS)
       const contextMessages = await prisma.chat_messages.findMany({
         where: { 
           session_id: BigInt(request.sessionId),
           role: { not: 'system' }
         },
         orderBy: { turn_index: 'desc' },
-        take: 10
+        take: 10  // ✅ Still get 10 for context
       });
 
       // Build chat history for ML service
       const chatHistory = contextMessages
         .reverse()
         .map(msg => `${msg.role}: ${msg.content}`)
-        .filter(msg => msg.includes(': '));
+        .slice(0, -1); // Remove current user message if exists
 
       // Get current turn index
       const lastMessage = await prisma.chat_messages.findFirst({
@@ -185,8 +185,8 @@ Hiện tại hệ thống gặp vấn đề kỹ thuật, nhưng dựa trên cu�
         }
       }
 
-      // Save AI response
-      await prisma.chat_messages.create({
+      // Save AI response  
+      const aiMessage = await prisma.chat_messages.create({
         data: {
           session_id: BigInt(request.sessionId),
           role: 'assistant',
@@ -196,33 +196,22 @@ Hiện tại hệ thống gặp vấn đề kỹ thuật, nhưng dựa trên cu�
             diagnosis_context: diagnosisContext,
             medical_snippets: medicalSnippets,
             context_messages_count: chatHistory.length
-          }) : undefined,  // Changed from null to undefined
-          top_passages: medicalSnippets.length > 0 ? JSON.stringify(medicalSnippets) : undefined  // Also fix this
+          }) : undefined,
+          top_passages: medicalSnippets.length > 0 ? JSON.stringify(medicalSnippets) : undefined
         }
       });
 
-      // Get recent messages for response
-      const recentMessages = await prisma.chat_messages.findMany({
-        where: { 
-          session_id: BigInt(request.sessionId),
-          role: { not: 'system' }
-        },
-        orderBy: { turn_index: 'desc' },
-        take: 6
-      });
-
-      const formattedMessages: ChatMessage[] = recentMessages
-        .reverse()
-        .map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content || '',
-          turn_index: msg.turn_index,
-          created_at: msg.created_at,
-          meta: msg.meta ? JSON.parse(msg.meta as string) : undefined  // Changed from null to undefined
-        }));
+      // FIX: Only return the new AI response (1 message)
+      const formattedMessage: ChatMessage = {
+        role: 'assistant',
+        content: aiMessage.content || '',
+        turn_index: aiMessage.turn_index,
+        created_at: aiMessage.created_at,
+        meta: aiMessage.meta ? JSON.parse(aiMessage.meta as string) : undefined
+      };
 
       return {
-        messages: formattedMessages,
+        messages: [formattedMessage],  // ✅ Only 1 AI response message
         diagnosisContext
       };
 

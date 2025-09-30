@@ -1,31 +1,18 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from diagnose_processor import DiagnoseProcessor
 from chat_processor import ChatProcessor
 
-app = FastAPI(title="Medical Diagnosis Service")
-processor = DiagnoseProcessor()
+app = FastAPI(title="Medical Chat Service")
 chat_processor = ChatProcessor()
 
-class ProcessRequest(BaseModel):
-    question_vi: str
-    topk: int = 8
-    
-class ChatRequest(BaseModel):  # NEW
+class ChatRequest(BaseModel):
     message: str
     chat_history: list[str] = []
     session_id: str
 
-@app.post("/api/process")
-async def process_question(request: ProcessRequest):
-    try:
-        result = await processor.process_question(request.question_vi, request.topk)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/chat")  # NEW
-async def chat_diagnosis(request: ChatRequest):
+@app.post("/api/chat")
+async def medical_chat(request: ChatRequest):
+    """Medical chat with context awareness and auto-citations"""
     try:
         result = await chat_processor.process_chat_message(
             request.message, 
@@ -34,11 +21,16 @@ async def chat_diagnosis(request: ChatRequest):
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ Chat processing failed: {e}")
+        raise HTTPException(status_code=500, detail="Medical chat service unavailable")
 
 @app.get("/api/health")
 def health_check():
-    return {"ok": True, "service": "Diagnose ML Processing"}
+    return {
+        "status": "healthy", 
+        "service": "Medical Chat Service",
+        "endpoints": ["/api/chat", "/api/health"]
+    }
 
 if __name__ == "__main__":
     import uvicorn

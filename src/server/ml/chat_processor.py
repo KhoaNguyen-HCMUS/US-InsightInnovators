@@ -1,7 +1,7 @@
 import os
 import requests
-from typing import Dict, Any, List
 import google.generativeai as genai
+from typing import Dict, Any, List
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,7 +17,14 @@ class ChatProcessor:
             raise RuntimeError("Missing GEMINI_API_KEY/GOOGLE_API_KEY in environment")
         
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("models/gemini-2.0-flash-exp")
+        self.model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        
+        # Translation prompt (từ diagnoseSystem.py)
+        self.translate_prompt = """Bạn là chuyên gia y khoa song ngữ. 
+Nhiệm vụ: dịch câu hỏi y khoa tiếng Việt dưới đây sang tiếng Anh NGẮN GỌN, đúng thuật ngữ.
+CHỈ trả ra câu tiếng Anh, không thêm gì khác.
+Câu hỏi:
+"""
         
         # System prompt for medical chatbot
         self.system_prompt = """Bạn là trợ lý y khoa AI chuyên nghiệp với các nguyên tắc sau:
@@ -50,24 +57,28 @@ Hãy phân tích cuộc hội thoại và đưa ra phản hồi phù hợp."""
         # Build conversation context
         conversation_context = self._build_conversation_context(chat_history, user_message)
         
-        # Extract symptoms/keywords for medical search
-        symptoms_keywords = await self._extract_medical_keywords(user_message, chat_history)
+        # ✅ FIX: Translate Vietnamese to English for ES search
+        query_en = await self._translate_vi_to_en(user_message, chat_history)
+        print(f"🔍 Translated query: '{query_en}'")
         
-        # Search medical knowledge if symptoms detected
+        # Search medical knowledge if translation successful
         medical_context = ""
         snippets = []
-        if symptoms_keywords:
+        if query_en and query_en.strip():
             try:
-                snippets, _ = self._search_elasticsearch(symptoms_keywords, topk=5)
+                snippets, _ = self._search_elasticsearch(query_en, topk=5)
                 medical_context = "\n".join(snippets[:3])
+                print(f"📚 Found {len(snippets)} medical snippets")
             except Exception as e:
-                print(f"ES search failed: {e}")
+                print(f"❌ ES search failed: {e}")
         
         # Generate contextual response
         ai_response = await self._generate_chat_response(
             conversation_context, 
             user_message, 
-            medical_context
+            medical_context,
+            snippets,
+            query_en
         )
         
         # Analyze conversation for diagnosis context
@@ -77,7 +88,7 @@ Hãy phân tích cuộc hội thoại và đưa ra phản hồi phù hợp."""
             "response": ai_response,
             "diagnosis_context": diagnosis_context,
             "medical_snippets": snippets[:2],
-            "symptoms_detected": symptoms_keywords
+            "symptoms_detected": query_en
         }
 
     def _build_conversation_context(self, chat_history: List[str], current_message: str) -> str:
@@ -91,138 +102,90 @@ Hãy phân tích cuộc hội thoại và đưa ra phản hồi phù hợp."""
         context = "LỊCH SỬ HỘI THOẠI:\n"
         for message in recent_history:
             if message.startswith("user:"):
-                context += f"Người dùng: {message[5:].strip()}\n"
+                context += f"Người dùng: {message[5:]}\n"
             elif message.startswith("assistant:"):
-                context += f"AI: {message[10:].strip()}\n"
+                context += f"Trợ lý: {message[10:]}\n"
         
         context += f"\nTIN NHẮN HIỆN TẠI:\nNgười dùng: {current_message}"
         return context
 
-    async def _extract_medical_keywords(self, message: str, chat_history: List[str]) -> str:
-        """Extract medical keywords for ES search"""
+    async def _translate_vi_to_en(self, message: str, chat_history: List[str]) -> str:
+        """✅ FIX: Translate Vietnamese medical terms to English (theo diagnoseSystem.py)"""
         try:
             # Use recent conversation for context
-            recent_messages = chat_history[-5:] if len(chat_history) > 5 else chat_history
+            recent_messages = chat_history[-3:] if len(chat_history) > 3 else chat_history
             context_text = " ".join(recent_messages) + " " + message
             
-            prompt = f"""Từ cuộc hội thoại y khoa này, trích xuất các từ khóa triệu chứng/bệnh lý bằng tiếng Anh để tìm kiếm thông tin y khoa.
-CHỈ trả về từ khóa tiếng Anh, cách nhau bằng dấu cách, KHÔNG giải thích gì thêm.
-Ví dụ: "headache fever nausea" hoặc "hypertension chest pain"
-
-Hội thoại: {context_text}
-
-Từ khóa:"""
-
-            response = self.model.generate_content(prompt)
-            keywords = response.text.strip()
+            # Use the same prompt as diagnoseSystem.py
+            prompt = self.translate_prompt + context_text
             
-            # Filter out non-medical terms
-            if len(keywords.split()) <= 10 and any(word in keywords.lower() for word in ['pain', 'fever', 'headache', 'symptom', 'disease', 'treatment']):
-                return keywords
-            return ""
+            response = self.model.generate_content(prompt)
+            query_en = response.text.strip()
+            
+            print(f"✅ Translation successful: '{message}' → '{query_en}'")
+            return query_en
             
         except Exception as e:
-            print(f"Keyword extraction failed: {e}")
+            print(f"❌ Translation failed: {e}")
             return ""
 
     def _search_elasticsearch(self, query: str, topk: int = 5):
-        """Search medical knowledge in Elasticsearch"""
+        """✅ Search medical knowledge in Elasticsearch (theo diagnoseSystem.py)"""
         try:
+            # Same payload as diagnoseSystem.py
             payload = {
-                "query": {
-                    "bool": {
-                        "should": [
-                            {"match": {"body": {"query": query, "boost": 2}}},
-                            {"match_phrase": {"body": query}},
-                            {"fuzzy": {"body": query}}
-                        ]
-                    }
-                },
+                "query": {"match": {"body": query}}, 
                 "size": topk
             }
             
-            response = requests.post(self.es_url, json=payload, timeout=10)
+            response = requests.post(self.es_url, json=payload, timeout=30)
             response.raise_for_status()
             
             hits = response.json().get("hits", {}).get("hits", [])
-            snippets = [hit["_source"]["body"] for hit in hits]
+            snippets = [hit["_source"]["body"] for hit in hits if "body" in hit["_source"]]
             
-            return snippets, hits
-        except Exception as e:
-            print(f"Elasticsearch search failed: {e}")
-            return [], []
+            print(f"📊 ES returned {len(snippets)} results for query: {query}")
+            return snippets, len(hits)
 
-    async def _generate_chat_response(self, conversation_context: str, current_message: str, medical_context: str) -> str:
-        """Generate AI response with conversation context"""
-        try:
-            prompt = f"""{self.system_prompt}
+        except Exception as e:
+            print(f"❌ Elasticsearch error: {e}")
+            return [], 0
+
+    async def _generate_chat_response(self, conversation_context: str, user_message: str, medical_context: str, snippets: List[str] = None, query_en: str = "") -> str:
+        prompt = f"""{self.system_prompt}
 
 {conversation_context}
 
 """
-            if medical_context:
-                prompt += f"""
-THÔNG TIN Y KHOA LIÊN QUAN:
+    
+        # ✅ FIX: Add medical context with citation requirement (theo diagnoseSystem.py)
+        if medical_context.strip() and snippets:
+            prompt += f"""
+THÔNG TIN Y KHOA LIÊN QUAN (từ tìm kiếm: "{query_en}"):
 {medical_context}
 
+**YÊU CẦU BẮT BUỘC:** 
+- Sử dụng thông tin y khoa trên để trả lời chính xác
+- PHẢI bao gồm phần "**Nguồn (trích sách):**" ở cuối
+- Trích dẫn 1-2 câu tiêu biểu từ nguồn (giữ nguyên tiếng Anh trong dấu ngoặc kép)
+- Format chính xác: **Nguồn (trích sách):** "exact English quote from medical source"
+
 """
-            prompt += """
-Hãy phân tích cuộc hội thoại và trả lời tin nhắn mới nhất của người dùng. 
-Sử dụng thông tin từ lịch sử hội thoại để đưa ra câu trả lời phù hợp và có tính liên tục.
-"""
 
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
-            
-        except Exception as e:
-            print(f"Chat response generation failed: {e}")
-            return """Xin lỗi, tôi gặp vấn đề kỹ thuật. 
-
-Nếu bạn có triệu chứng cần tư vấn gấp:
-• Triệu chứng nhẹ: thử lại sau vài phút
-• Triệu chứng nghiêm trọng: liên hệ bác sĩ hoặc cơ sở y tế
-• Trường hợp khẩn cấp: gọi 115 hoặc đến cấp cứu ngay
-
-**Lưu ý:** Hệ thống AI chỉ hỗ trợ tư vấn, không thay thế việc khám bác sĩ."""
+        prompt += "\nTrợ lý AI:"
+        
+        response = self.model.generate_content(prompt)
+        return response.text.strip()
 
     async def _analyze_conversation_context(self, full_history: List[str]) -> Dict[str, Any]:
         """Analyze conversation to extract diagnosis context"""
         try:
-            all_text = " ".join(full_history)
-            
-            prompt = f"""Phân tích cuộc hội thoại y khoa này và trích xuất thông tin cấu trúc:
-
-Hội thoại: {all_text}
-
-Trả về JSON format:
-{{
-  "symptoms_mentioned": ["triệu chứng 1", "triệu chứng 2"],
-  "duration": "thời gian xuất hiện triệu chứng",
-  "severity": "mức độ (nhẹ/vừa/nặng)",
-  "key_concerns": ["mối quan tâm chính"],
-  "recommendation_level": "self_care/see_doctor/emergency"
-}}
-"""
-
-            response = self.model.generate_content(prompt)
-            try:
-                import json
-                return json.loads(response.text.strip())
-            except:
-                return {
-                    "symptoms_mentioned": [],
-                    "duration": "unknown",
-                    "severity": "unknown", 
-                    "key_concerns": [],
-                    "recommendation_level": "see_doctor"
-                }
-                
-        except Exception as e:
-            print(f"Conversation analysis failed: {e}")
             return {
                 "symptoms_mentioned": [],
-                "duration": "unknown",
+                "duration": "unknown", 
                 "severity": "unknown",
                 "key_concerns": [],
                 "recommendation_level": "see_doctor"
             }
+        except Exception as e:
+            return {"error": str(e)}

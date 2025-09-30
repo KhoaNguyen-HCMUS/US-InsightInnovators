@@ -4,7 +4,7 @@ import { ChatService } from '../services/chatService';
 
 // Validation schemas
 const createSessionSchema = z.object({
-  purpose: z.string().optional().default('medical_diagnosis'),
+  purpose: z.string().optional().default('medical_diagnosis'), // Only one purpose
   lang: z.string().optional().default('vi'),
   model_name: z.string().optional().default('gemini-2.0-flash-exp')
 });
