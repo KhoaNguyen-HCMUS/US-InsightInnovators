@@ -1,2 +1,7 @@
 fastapi
 uvicorn
+torch
+transformers
+timm
+Pillow
+python-multipart

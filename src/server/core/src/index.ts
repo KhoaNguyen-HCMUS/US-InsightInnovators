@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth";
 import chatRoutes from "./routes/chat";
+import foodRoutes from "./routes/food";
 
 dotenv.config();
 
@@ -14,6 +15,8 @@ app.use(express.json());
 // Mount routes
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api", foodRoutes);
+
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 const PORT = Number(process.env.PORT) || 5000;

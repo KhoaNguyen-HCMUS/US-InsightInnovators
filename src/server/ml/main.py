@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, UploadFile, File
+from food101.model import classify_food, HTTPException
 from pydantic import BaseModel
 from chat_processor import ChatProcessor
 
@@ -31,6 +32,18 @@ def health_check():
         "service": "Medical Chat Service",
         "endpoints": ["/api/chat", "/api/health"]
     }
+
+@app.post("/predict-food101")
+async def predict_food(file: UploadFile = File(...)):
+    contents = await file.read()
+    result = classify_food(contents)
+    return result
+
+@app.post("/predict-food101")
+async def predict_food(file: UploadFile = File(...)):
+    contents = await file.read()
+    result = classify_food(contents)
+    return result
 
 if __name__ == "__main__":
     import uvicorn
