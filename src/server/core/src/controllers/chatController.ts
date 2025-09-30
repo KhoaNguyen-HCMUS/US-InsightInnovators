@@ -164,23 +164,24 @@ export class ChatController {
           message: 'Please log in to view chat history'
         });
       }
-
-      const sessionId = req.params.sessionId;
+  
+      // ✅ FIX: Get sessionId from query parameter instead of path parameter
+      const sessionId = req.query.sessionId as string;
       if (!sessionId) {
         return res.status(400).json({
-          error: 'Session ID is required'
+          error: 'Session ID is required as query parameter',
+          message: 'Please provide sessionId in query string'
         });
       }
-
-      // FIX: Use ChatController.getChatService()
+  
       const chatService = ChatController.getChatService();
       const history = await chatService.getChatHistory(sessionId, req.user.id);
-
+  
       return res.json({
         success: true,
         data: history
       });
-
+  
     } catch (error) {
       console.error('❌ Get chat history error:', error);
       return res.status(500).json({
