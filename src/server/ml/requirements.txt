@@ -5,3 +5,4 @@ transformers
 timm
 Pillow
 python-multipart
+hf_xet

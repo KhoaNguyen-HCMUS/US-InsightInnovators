@@ -31,6 +31,16 @@ interface JwtPayload {
 // Middleware to verify JWT token and add user to request
 export const authenticateToken = async (req: any, res: any, next: any) => {
   try {
+    // Check JWT_SECRET first
+    if (!JWT_SECRET) {
+      console.error('❌ JWT_SECRET not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error',
+        message: 'JWT secret not configured'
+      });
+    }
+    
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
     const token =
@@ -49,7 +59,7 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
     // Verify token
     let decoded: JwtPayload;
     try {
-      const verifiedToken = jwt.verify(token, JWT_SECRET!);
+      const verifiedToken = jwt.verify(token, JWT_SECRET);
       decoded = verifiedToken as JwtPayload;
     } catch (jwtError) {
       if (jwtError instanceof jwt.TokenExpiredError) {
@@ -75,32 +85,8 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
         email: true,
       },
     });
-  }
-
-  if (!JWT_SECRET) {
-    console.error('❌ JWT_SECRET not configured');
-    return res.status(500).json({
-      success: false,
-      error: 'Server configuration error',
-      message: 'JWT secret not configured'
-    });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    console.log('✅ Token decoded:', { userId: decoded.userId, email: decoded.email });
     
-    req.user = {
-      id: decoded.userId,
-      email: decoded.email,
-      userId: decoded.userId // For compatibility
-    };
-    
-    next();
-  } catch (error) {
-    console.error('❌ Token verification failed:', error);
-    
-    if (error instanceof jwt.TokenExpiredError) {
+    if (!user) {
       return res.status(401).json({
         error: "User not found",
         message: "The user associated with this token no longer exists.",
@@ -111,6 +97,7 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
     req.user = {
       id: user.id.toString(),
       email: user.email,
+      userId: user.id.toString() // For compatibility
     };
 
     // Also set userId as bigint for backward compatibility
