@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, File
-from food101.model import classify_food, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from food101.model import classify_food
 from pydantic import BaseModel
 from chat_processor import ChatProcessor
 

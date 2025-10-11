@@ -40,9 +40,9 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
 
     if (!token) {
       return res.status(401).json({
-        error: "Authentication required",
-        message:
-          "No token provided. Please include a valid JWT token in the Authorization header.",
+        success: false,
+        error: "Access token required",
+        message: "Please provide a valid access token",
       });
     }
 
@@ -54,11 +54,13 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
     } catch (jwtError) {
       if (jwtError instanceof jwt.TokenExpiredError) {
         return res.status(401).json({
+          success: false,
           error: "Token expired",
           message: "Your session has expired. Please log in again.",
         });
       } else if (jwtError instanceof jwt.JsonWebTokenError) {
         return res.status(401).json({
+          success: false,
           error: "Invalid token",
           message: "The provided token is invalid.",
         });
@@ -75,33 +77,10 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
         email: true,
       },
     });
-  }
 
-  if (!JWT_SECRET) {
-    console.error('❌ JWT_SECRET not configured');
-    return res.status(500).json({
-      success: false,
-      error: 'Server configuration error',
-      message: 'JWT secret not configured'
-    });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    console.log('✅ Token decoded:', { userId: decoded.userId, email: decoded.email });
-    
-    req.user = {
-      id: decoded.userId,
-      email: decoded.email,
-      userId: decoded.userId // For compatibility
-    };
-    
-    next();
-  } catch (error) {
-    console.error('❌ Token verification failed:', error);
-    
-    if (error instanceof jwt.TokenExpiredError) {
+    if (!user) {
       return res.status(401).json({
+        success: false,
         error: "User not found",
         message: "The user associated with this token no longer exists.",
       });
@@ -111,6 +90,7 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
     req.user = {
       id: user.id.toString(),
       email: user.email,
+      userId: user.id.toString(), // For compatibility
     };
 
     // Also set userId as bigint for backward compatibility
@@ -121,6 +101,7 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
   } catch (error) {
     console.error("❌ Authentication middleware error:", error);
     return res.status(500).json({
+      success: false,
       error: "Authentication error",
       message:
         process.env.NODE_ENV === "development"
@@ -162,6 +143,7 @@ export const optionalAuth = async (req: any, res: any, next: any) => {
         req.user = {
           id: user.id.toString(),
           email: user.email,
+          userId: user.id.toString(), // For compatibility
         };
         // Also set userId as bigint for backward compatibility
         req.userId = user.id;
