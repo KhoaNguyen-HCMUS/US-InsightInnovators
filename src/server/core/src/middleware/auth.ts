@@ -31,6 +31,16 @@ interface JwtPayload {
 // Middleware to verify JWT token and add user to request
 export const authenticateToken = async (req: any, res: any, next: any) => {
   try {
+    // Check JWT_SECRET first
+    if (!JWT_SECRET) {
+      console.error('❌ JWT_SECRET not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error',
+        message: 'JWT secret not configured'
+      });
+    }
+    
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
     const token =
@@ -49,7 +59,7 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
     // Verify token
     let decoded: JwtPayload;
     try {
-      const verifiedToken = jwt.verify(token, JWT_SECRET!);
+      const verifiedToken = jwt.verify(token, JWT_SECRET);
       decoded = verifiedToken as JwtPayload;
     } catch (jwtError) {
       if (jwtError instanceof jwt.TokenExpiredError) {
@@ -77,7 +87,6 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
         email: true,
       },
     });
-
     if (!user) {
       return res.status(401).json({
         success: false,

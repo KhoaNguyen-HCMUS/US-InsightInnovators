@@ -12,6 +12,11 @@ cd src
 pnpm install
 ```
 
+```bash
+cd server/core
+pnpm prisma generate
+```
+
 ## 2) Cài dependencies Python
 
 ```bash
