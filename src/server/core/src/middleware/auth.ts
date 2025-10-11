@@ -1,5 +1,8 @@
-import jwt from "jsonwebtoken";
-const prisma = require("../../prisma/client");
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '../generated/prisma';
+import { Request, Response, NextFunction } from 'express';
+
+const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Validate JWT_SECRET at startup
@@ -12,6 +15,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
+    userId: string;
   };
   userId?: bigint;
 }
@@ -71,8 +75,32 @@ export const authenticateToken = async (req: any, res: any, next: any) => {
         email: true,
       },
     });
+  }
 
-    if (!user) {
+  if (!JWT_SECRET) {
+    console.error('❌ JWT_SECRET not configured');
+    return res.status(500).json({
+      success: false,
+      error: 'Server configuration error',
+      message: 'JWT secret not configured'
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    console.log('✅ Token decoded:', { userId: decoded.userId, email: decoded.email });
+    
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email,
+      userId: decoded.userId // For compatibility
+    };
+    
+    next();
+  } catch (error) {
+    console.error('❌ Token verification failed:', error);
+    
+    if (error instanceof jwt.TokenExpiredError) {
       return res.status(401).json({
         error: "User not found",
         message: "The user associated with this token no longer exists.",

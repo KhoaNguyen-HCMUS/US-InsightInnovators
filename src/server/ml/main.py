@@ -1,11 +1,37 @@
 from fastapi import FastAPI, UploadFile, File
-from food101.model import classify_food
+from food101.model import classify_food, HTTPException
+from pydantic import BaseModel
+from chat_processor import ChatProcessor
 
-app = FastAPI()
+app = FastAPI(title="Medical Chat Service")
+chat_processor = ChatProcessor()
+
+class ChatRequest(BaseModel):
+    message: str
+    chat_history: list[str] = []
+    session_id: str
+
+@app.post("/api/chat")
+async def medical_chat(request: ChatRequest):
+    """Medical chat with context awareness and auto-citations"""
+    try:
+        result = await chat_processor.process_chat_message(
+            request.message, 
+            request.chat_history,
+            request.session_id
+        )
+        return result
+    except Exception as e:
+        print(f"❌ Chat processing failed: {e}")
+        raise HTTPException(status_code=500, detail="Medical chat service unavailable")
 
 @app.get("/api/health")
 def health_check():
-    return {"ok": True}
+    return {
+        "status": "healthy", 
+        "service": "Medical Chat Service",
+        "endpoints": ["/api/chat", "/api/health"]
+    }
 
 @app.post("/predict-food101")
 async def predict_food(file: UploadFile = File(...)):

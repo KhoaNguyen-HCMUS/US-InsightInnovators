@@ -2,5 +2,9 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "dotenv": "^17.2.2"
+  },
+  "scripts": {
+    "dev:ml": "cd src/server/ml && run-dev.bat",
+    "setup:ml": "cd src/server/ml && setup.bat"
   }
 }
