@@ -3,7 +3,7 @@ import type { HealthProfile } from "./health";
 export interface MealPlan {
   id: string;
   userId: string;
-  duration: 'weekly' | 'monthly';
+  duration: "weekly" | "monthly";
   startDate: Date;
   endDate: Date;
   totalCalories: number;
@@ -28,7 +28,7 @@ export interface DailyMealPlan {
 export interface Meal {
   id: string;
   name: string;
-  type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  type: "breakfast" | "lunch" | "dinner" | "snack";
   calories: number;
   macros: MacroNutrients;
   ingredients: Ingredient[];
@@ -45,7 +45,15 @@ export interface Ingredient {
   name: string;
   amount: number;
   unit: string;
-  category: 'protein' | 'carbohydrate' | 'vegetable' | 'fruit' | 'dairy' | 'fat' | 'spice' | 'other';
+  category:
+    | "protein"
+    | "carbohydrate"
+    | "vegetable"
+    | "fruit"
+    | "dairy"
+    | "fat"
+    | "spice"
+    | "other";
   calories: number;
   macros: MacroNutrients;
   allergens: string[];
@@ -93,9 +101,9 @@ export interface UserPreferences {
   dislikedFoods: string[];
   favoriteCuisines: string[];
   dietaryRestrictions: string[];
-  cookingSkill: 'beginner' | 'intermediate' | 'advanced';
+  cookingSkill: "beginner" | "intermediate" | "advanced";
   availableTime: number; // minutes per day
-  budget: 'low' | 'medium' | 'high';
+  budget: "low" | "medium" | "high";
 }
 
 export interface NutritionConstraints {
@@ -115,7 +123,7 @@ export interface NutritionConstraints {
 }
 
 export interface MealPlanGenerationRequest {
-  duration: 'weekly' | 'monthly';
+  duration: "weekly" | "monthly";
   preferences: UserPreferences;
   constraints: NutritionConstraints;
   healthProfile: HealthProfile;
@@ -131,7 +139,7 @@ export interface MealPlanGenerationResponse {
 
 export interface SubstitutionRequest {
   originalIngredient: string;
-  reason: 'allergy' | 'preference' | 'availability' | 'cost';
+  reason: "allergy" | "preference" | "availability" | "cost";
   mealId: string;
   mealType: string;
 }
@@ -144,15 +152,36 @@ export interface SubstitutionSuggestion {
     unit: string;
     nutritionalDifference: MacroNutrients;
     reason: string;
+    absolute?: {
+      calories: number;
+      macros: Pick<MacroNutrients, "protein" | "carbohydrates" | "fat">;
+    };
   }[];
+  backendUpdated?: {
+    dayIndex: number;
+    mealSlot: string;
+    dayTotals: {
+      calories: number;
+      protein: number;
+      carbohydrates: number;
+      fat: number;
+    };
+    scaleApplied?: number;
+    groceryListItems?: Array<{
+      name: string;
+      amount: number;
+      unit: string;
+      category: string;
+    }>;
+  };
 }
 
 export interface MealPlanAuditLog {
   id: string;
   mealPlanId: string;
-  action: 'generated' | 'modified' | 'substituted' | 'saved' | 'deleted';
+  action: "generated" | "modified" | "substituted" | "saved" | "deleted";
   changes: Record<string, string | number | boolean | object>;
   timestamp: Date;
   userId: string;
-  source: 'llm' | 'manual' | 'system';
+  source: "llm" | "manual" | "system";
 }

@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const prisma = require("../../prisma/client");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL_ID = process.env.GEMINI_MODEL_ID || "gemini-2.5-flash";
+const GEMINI_MODEL_ID = process.env.GEMINI_MODEL_ID || "gemini-2.5-flash-lite";
 
 // Simple in-memory cache for meal plans (production should use Redis)
 const mealPlanCache = new Map<string, any>();
@@ -486,8 +486,27 @@ export class MealPlanController {
 
       console.log("🔄 Finding substitute for:", dish_to_replace.name);
 
-      // Generate substitute using AI
-      const substitute = await findDishSubstitute(
+      // --- Macro budget computation to protect daily targets ---
+      const planData = mealPlan.ai_notes_json?.plan_data || {};
+      const dayKey = `day_${day_index}`;
+      const dayMealsBefore = planData[dayKey] || {};
+      const originalDishInPlan = dayMealsBefore[meal_slot] || dish_to_replace;
+
+      const dailyTargets = mealPlan.ai_notes_json?.nutrition_targets || {};
+      const MARGIN = 0.05; // 5% slack
+
+      const totalsBefore = sumDayMacros(dayMealsBefore);
+      const totalsExcludingOriginal = subtractMacros(
+        totalsBefore,
+        originalDishInPlan
+      );
+      const maxAllowed = multiplyMacros(dailyTargets, 1 + MARGIN);
+      const macroBudget = clampNonNegative(
+        subtractMacroObjects(maxAllowed, totalsExcludingOriginal)
+      );
+
+      // Generate substitute using AI (hinting budget is handled in prompt later if needed)
+      let substitute = await findDishSubstitute(
         dish_to_replace,
         preferences,
         profile
@@ -501,8 +520,41 @@ export class MealPlanController {
         });
       }
 
-      // Update meal plan data with substitution
+      // Attempt auto-scale to fit macro budget if needed
+      const scaled = scaleDishToBudget(substitute, macroBudget);
+      substitute = scaled.dish;
+
+      // Validate after-substitution totals
       const currentPlanData = mealPlan.ai_notes_json?.plan_data || {};
+      const simulatedDay = { ...dayMealsBefore, [meal_slot]: substitute };
+      const totalsAfter = sumDayMacros(simulatedDay);
+      const overCal =
+        totalsAfter.calories > (dailyTargets.calories || 0) * (1 + MARGIN);
+      const overProtein =
+        totalsAfter.protein > (dailyTargets.protein || 0) * (1 + MARGIN);
+      const overCarbs =
+        totalsAfter.carbs > (dailyTargets.carbs || 0) * (1 + MARGIN);
+      const overFat = totalsAfter.fat > (dailyTargets.fat || 0) * (1 + MARGIN);
+      if (overCal || overProtein || overCarbs || overFat) {
+        return res.status(400).json({
+          error: "Substitute dish exceeds daily nutrition targets",
+          details: {
+            totalsBefore,
+            totalsAfter,
+            dailyTargets,
+            macroBudget,
+            scale_applied: scaled.scale,
+            overCal,
+            overProtein,
+            overCarbs,
+            overFat,
+          },
+          message:
+            "Please choose a substitute dish with lower nutrition values or adjust your targets.",
+        });
+      }
+
+      // Apply substitution now that it fits the budget
       const updatedPlanData = updateMealPlanWithSubstitution(
         currentPlanData,
         day_index,
@@ -520,9 +572,13 @@ export class MealPlanController {
         reason: reason || "User requested substitution",
       };
 
+      // Regenerate grocery list after substitution
+      const updatedGroceryList = generateGroceryList(updatedPlanData);
+
       const updatedAiNotes = {
         ...mealPlan.ai_notes_json,
         plan_data: updatedPlanData,
+        grocery_list: updatedGroceryList,
         substitutions: [
           ...(mealPlan.ai_notes_json?.substitutions || []),
           substitutionRecord,
@@ -536,6 +592,40 @@ export class MealPlanController {
         },
       });
 
+      // Prepare helper: flatten grocery list to items array for frontend convenience
+      const groceryItems: Array<{
+        name: string;
+        amount: number;
+        unit: string;
+        category: string;
+      }> = [];
+      try {
+        const categories = [
+          "vegetables",
+          "proteins",
+          "grains",
+          "other",
+        ] as const;
+        categories.forEach((cat) => {
+          const items = (updatedGroceryList as any)[cat];
+          if (Array.isArray(items)) {
+            items.forEach((entry: any) => {
+              const [name, details] = entry || [];
+              if (name && details) {
+                groceryItems.push({
+                  name: String(name),
+                  amount: Number(details.quantity || 1),
+                  unit: String(details.unit || "portion"),
+                  category: String(details.category || cat),
+                });
+              }
+            });
+          }
+        });
+      } catch (e) {
+        console.warn("⚠️ Failed to flatten grocery list items:", e);
+      }
+
       const serializedResponse = serializeBigIntObject({
         substitution: substitutionRecord,
         substitute_dish: substitute,
@@ -544,6 +634,14 @@ export class MealPlanController {
           substitute: substitute,
           calorie_difference:
             (substitute.calories || 0) - (dish_to_replace.calories || 0),
+        },
+        updated: {
+          day_index,
+          meal_slot,
+          day_totals: totalsAfter,
+          scale_applied: scaled.scale,
+          grocery_list: updatedGroceryList,
+          grocery_list_items: groceryItems,
         },
       });
 
@@ -912,6 +1010,105 @@ function generateGroceryList(planData: any) {
     ),
     generated_at: new Date().toISOString(),
   };
+}
+
+// -------- Macro Utilities to protect daily targets --------
+type Macro = {
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+};
+
+function toNumber(n: any): number {
+  return Number(n || 0);
+}
+
+function sumDayMacros(dayMeals: Record<string, any>): Required<Macro> {
+  const totals: Required<Macro> = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  Object.values(dayMeals || {}).forEach((meal: any) => {
+    totals.calories += toNumber(meal?.calories);
+    totals.protein += toNumber(meal?.protein);
+    totals.carbs += toNumber(meal?.carbs);
+    totals.fat += toNumber(meal?.fat);
+  });
+  return totals;
+}
+
+function subtractMacros(total: Macro, dish: Macro): Required<Macro> {
+  return clampNonNegative({
+    calories: toNumber(total.calories) - toNumber(dish.calories),
+    protein: toNumber(total.protein) - toNumber(dish.protein),
+    carbs: toNumber(total.carbs) - toNumber(dish.carbs),
+    fat: toNumber(total.fat) - toNumber(dish.fat),
+  }) as Required<Macro>;
+}
+
+function subtractMacroObjects(a: Macro, b: Macro): Required<Macro> {
+  return clampNonNegative({
+    calories: toNumber(a.calories) - toNumber(b.calories),
+    protein: toNumber(a.protein) - toNumber(b.protein),
+    carbs: toNumber(a.carbs) - toNumber(b.carbs),
+    fat: toNumber(a.fat) - toNumber(b.fat),
+  }) as Required<Macro>;
+}
+
+function multiplyMacros(m: Macro, factor: number): Required<Macro> {
+  return {
+    calories: Math.max(0, Math.round(toNumber(m.calories) * factor)),
+    protein: Math.max(0, Math.round(toNumber(m.protein) * factor)),
+    carbs: Math.max(0, Math.round(toNumber(m.carbs) * factor)),
+    fat: Math.max(0, Math.round(toNumber(m.fat) * factor)),
+  };
+}
+
+function clampNonNegative(m: Macro): Required<Macro> {
+  return {
+    calories: Math.max(0, toNumber(m.calories)),
+    protein: Math.max(0, toNumber(m.protein)),
+    carbs: Math.max(0, toNumber(m.carbs)),
+    fat: Math.max(0, toNumber(m.fat)),
+  };
+}
+
+// Scale a dish down to fit within macro budget; returns scaled dish and scale factor
+function scaleDishToBudget(
+  dish: any,
+  budget: Macro
+): { dish: any; scale: number } {
+  const d: Required<Macro> = {
+    calories: toNumber(dish?.calories),
+    protein: toNumber(dish?.protein),
+    carbs: toNumber(dish?.carbs),
+    fat: toNumber(dish?.fat),
+  };
+  const b: Required<Macro> = clampNonNegative(budget || {});
+
+  // Compute maximum allowed scale across all macros that have values
+  const ratios: number[] = [];
+  if (d.calories > 0) ratios.push(b.calories / d.calories);
+  if (d.protein > 0) ratios.push(b.protein / d.protein);
+  if (d.carbs > 0) ratios.push(b.carbs / d.carbs);
+  if (d.fat > 0) ratios.push(b.fat / d.fat);
+
+  // If no constraints, keep as is
+  if (ratios.length === 0) return { dish, scale: 1 };
+
+  const scale = Math.min(1, ...ratios.filter((r) => Number.isFinite(r)));
+  if (scale >= 1) return { dish, scale: 1 };
+
+  const scaled = {
+    ...dish,
+    calories: Math.round(d.calories * scale),
+    protein: Math.round(d.protein * scale),
+    carbs: Math.round(d.carbs * scale),
+    fat: Math.round(d.fat * scale),
+    // Optionally annotate scaling info
+    servings: dish?.servings ? +(dish.servings * scale).toFixed(2) : undefined,
+    scaled_from:
+      dish?.name || dish?.scaled_from ? dish.scaled_from : dish?.name,
+  };
+  return { dish: scaled, scale };
 }
 
 async function findDishSubstitute(

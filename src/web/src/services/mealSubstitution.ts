@@ -1,4 +1,4 @@
-import { requestAuth } from '../utils/api';
+import { requestAuth } from "../utils/api";
 
 export interface DishToReplace {
   name: string;
@@ -54,6 +54,24 @@ export interface MealSubstitutionData {
     reason: string;
   };
   nutrition_comparison: NutritionComparison;
+  updated?: {
+    day_index: number;
+    meal_slot: string;
+    day_totals: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+    scale_applied?: number;
+    grocery_list?: any;
+    grocery_list_items?: Array<{
+      name: string;
+      amount: number;
+      unit: string;
+      category: string;
+    }>;
+  };
 }
 
 export interface MealSubstitutionResponse {
@@ -67,15 +85,14 @@ export const substituteMeal = async (
   request: MealSubstitutionRequest
 ): Promise<MealSubstitutionResponse> => {
   try {
-    const response = await requestAuth<MealSubstitutionResponse, MealSubstitutionRequest>(
-      'POST',
-      `/api/meal-plans/${mealPlanId}/substitute`,
-      request
-    );
+    const response = await requestAuth<
+      MealSubstitutionResponse,
+      MealSubstitutionRequest
+    >("POST", `/api/meal-plans/${mealPlanId}/substitute`, request);
 
     return response;
   } catch (error) {
-    console.error('Error substituting meal:', error);
+    console.error("Error substituting meal:", error);
     throw error;
   }
 };
