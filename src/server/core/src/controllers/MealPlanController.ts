@@ -83,17 +83,24 @@ export class MealPlanController {
         ...preferences, // Override with request preferences
       };
 
-      // Step 4: Compute nutrition targets (Use Case step 4)
+      // Step 4: Compute nutrition targets (Use Case step 4) with personalization
+      // Prefer request focus over stored profile goal for this plan
+      const planGoal = mergedPreferences?.focus
+        ? mapFocusToGoal(mergedPreferences.focus)
+        : profile.goal || "maintain";
+
       const tdee = Number(profile.tdee || 2000);
       const goalMultiplier =
-        profile.goal === "lose" ? 0.8 : profile.goal === "gain" ? 1.2 : 1.0;
+        planGoal === "lose" ? 0.8 : planGoal === "gain" ? 1.15 : 1.0;
       const dailyCalories = Math.round(tdee * goalMultiplier);
 
+      // Macro split changes by goal (grams derived from %)
+      const macroSplit = getMacroSplit(planGoal);
       const nutritionTargets = {
         calories: dailyCalories,
-        protein: Math.round((dailyCalories * 0.25) / 4), // 25% protein
-        carbs: Math.round((dailyCalories * 0.45) / 4), // 45% carbs
-        fat: Math.round((dailyCalories * 0.3) / 9), // 30% fat
+        protein: Math.round((dailyCalories * macroSplit.proteinPct) / 4),
+        carbs: Math.round((dailyCalories * macroSplit.carbsPct) / 4),
+        fat: Math.round((dailyCalories * macroSplit.fatPct) / 9),
       };
 
       // 🚀 PERFORMANCE: Check cache first
@@ -180,8 +187,12 @@ export class MealPlanController {
       const validatedPlan = validateMealPlan(
         planData,
         nutritionTargets,
-        profile
+        profile,
+        mergedPreferences
       );
+
+      // Normalize daily totals to stay within targets (scale down if over)
+      const normalizedPlan = normalizeMealPlan(validatedPlan, nutritionTargets);
 
       // 🚀 PERFORMANCE: Cache the generated plan for future use
       mealPlanCache.set(cacheKey, {
@@ -192,7 +203,7 @@ export class MealPlanController {
 
       // Generate grocery list in parallel with DB operations
       const groceryListPromise = Promise.resolve(
-        generateGroceryList(validatedPlan)
+        generateGroceryList(normalizedPlan)
       );
 
       // Step 11: Store the plan using optimized parallel operations
@@ -218,7 +229,7 @@ export class MealPlanController {
               plan_type: "meal_plan",
               duration,
               nutrition_targets: nutritionTargets,
-              plan_data: validatedPlan,
+              plan_data: normalizedPlan,
               generation_preferences: mergedPreferences,
               start_date: new Date().toISOString(),
               end_date: new Date(
@@ -287,7 +298,7 @@ export class MealPlanController {
           title: planTitle,
           duration,
           created_at: masterMeal.date_time,
-          plan_data: validatedPlan,
+          plan_data: normalizedPlan,
           nutrition_targets: nutritionTargets,
           grocery_list: groceryList,
         },
@@ -509,7 +520,8 @@ export class MealPlanController {
       let substitute = await findDishSubstitute(
         dish_to_replace,
         preferences,
-        profile
+        profile,
+        macroBudget
       );
 
       if (!substitute) {
@@ -963,10 +975,102 @@ function generateMockMealPlan(
   return plan;
 }
 
-function validateMealPlan(planData: any, targets: any, profile: any) {
-  // Validate nutrition balance, allergies, etc.
-  // For now, return as-is
-  return planData;
+function validateMealPlan(
+  planData: any,
+  targets: any,
+  profile: any,
+  preferences?: any
+) {
+  // Enforce excluded ingredients: remove or tag ingredients that match exclude list
+  const excludes: string[] = (preferences?.exclude_ingredients || []).map(
+    (s: string) => s.toLowerCase().trim()
+  );
+  if (!excludes.length) return planData;
+
+  const cleaned: any = {};
+  for (const [dayKey, dayVal] of Object.entries(planData || {})) {
+    cleaned[dayKey] = {};
+    for (const [slotKey, meal] of Object.entries(dayVal as any)) {
+      if (meal && Array.isArray((meal as any).ingredients)) {
+        const filtered = (meal as any).ingredients.filter(
+          (ing: string) =>
+            !excludes.some((ex) => ing.toLowerCase().includes(ex))
+        );
+        cleaned[dayKey][slotKey] = { ...(meal as any), ingredients: filtered };
+      } else {
+        cleaned[dayKey][slotKey] = meal;
+      }
+    }
+  }
+  return cleaned;
+}
+
+// Map UI focus to internal goal label
+function mapFocusToGoal(focus: string): "lose" | "gain" | "maintain" {
+  if (focus === "weight_loss") return "lose";
+  if (focus === "muscle_gain") return "gain";
+  return "maintain";
+}
+
+// Macro split by goal (percents that sum to ~1)
+function getMacroSplit(goal: "lose" | "gain" | "maintain") {
+  switch (goal) {
+    case "lose":
+      return { proteinPct: 0.3, carbsPct: 0.4, fatPct: 0.3 };
+    case "gain":
+      return { proteinPct: 0.25, carbsPct: 0.5, fatPct: 0.25 };
+    default:
+      return { proteinPct: 0.25, carbsPct: 0.45, fatPct: 0.3 };
+  }
+}
+
+// Normalize each day: if totals exceed targets (+5%), scale all meals on that day down proportionally
+function normalizeMealPlan(planData: any, targets: any) {
+  const MARGIN = 0.05;
+  const normalized: any = {};
+
+  for (const [dayKey, dayVal] of Object.entries(planData || {})) {
+    const meals = dayVal as any;
+    const totals = sumDayMacros(meals);
+    const limit = {
+      calories: (targets.calories || 0) * (1 + MARGIN),
+      protein: (targets.protein || 0) * (1 + MARGIN),
+      carbs: (targets.carbs || 0) * (1 + MARGIN),
+      fat: (targets.fat || 0) * (1 + MARGIN),
+    };
+
+    // Determine scale factor across macros that exceed limit
+    const scales: number[] = [];
+    if (totals.calories > limit.calories && totals.calories > 0)
+      scales.push(limit.calories / totals.calories);
+    if (totals.protein > limit.protein && totals.protein > 0)
+      scales.push(limit.protein / totals.protein);
+    if (totals.carbs > limit.carbs && totals.carbs > 0)
+      scales.push(limit.carbs / totals.carbs);
+    if (totals.fat > limit.fat && totals.fat > 0)
+      scales.push(limit.fat / totals.fat);
+    const scale = scales.length ? Math.min(...scales) : 1;
+
+    if (scale >= 1) {
+      normalized[dayKey] = meals;
+      continue;
+    }
+
+    // Scale each meal
+    const scaledDay: any = {};
+    for (const [slotKey, meal] of Object.entries(meals)) {
+      const m = meal as any;
+      scaledDay[slotKey] = {
+        ...m,
+        calories: Math.round(toNumber(m.calories) * scale),
+        protein: Math.round(toNumber(m.protein) * scale),
+        carbs: Math.round(toNumber(m.carbs) * scale),
+        fat: Math.round(toNumber(m.fat) * scale),
+      };
+    }
+    normalized[dayKey] = scaledDay;
+  }
+  return normalized;
 }
 
 function generateGroceryList(planData: any) {
@@ -1114,7 +1218,13 @@ function scaleDishToBudget(
 async function findDishSubstitute(
   originalDish: any,
   preferences: any,
-  profile: any
+  profile: any,
+  macroBudget?: {
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+  }
 ) {
   if (!GEMINI_API_KEY) {
     console.warn("⚠️ GEMINI_API_KEY not configured, using mock substitute");
@@ -1143,6 +1253,16 @@ Tôi cần tìm món ăn thay thế cho "${originalDish.name}" với các yêu c
 - Mục tiêu: ${profile?.goal || "maintain"}
 - Hoạt động: ${profile?.activity_level || "moderate"}
 
+**Ngân sách dinh dưỡng còn lại cho ngày (tối đa):**
+${
+  macroBudget
+    ? `- Calories: ${Math.round(macroBudget.calories || 0)} kcal
+- Protein: ${Math.round(macroBudget.protein || 0)}g
+- Carbs: ${Math.round(macroBudget.carbs || 0)}g
+- Fat: ${Math.round(macroBudget.fat || 0)}g`
+    : "- Không cung cấp"
+}
+
 Hãy đề xuất 1 món ăn Việt Nam cụ thể thay thế phù hợp. Trả về JSON theo format:
 
 {
@@ -1161,7 +1281,7 @@ Hãy đề xuất 1 món ăn Việt Nam cụ thể thay thế phù hợp. Trả 
 **Yêu cầu:**
 1. Món thay thế phải là món ăn Việt Nam thật
 2. Dinh dưỡng tương đương món gốc
-3. Phù hợp với sở thích người dùng
+3. Phù hợp với sở thích người dùng và KHÔNG vượt quá ngân sách dinh dưỡng còn lại nêu trên
 4. Chỉ trả về JSON, không text khác`;
 
     console.log("🔄 Finding substitute with Gemini AI...");
